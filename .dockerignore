@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+
+# Local dev artifacts
+*.db
+*.sqlite
+*.log
+tmp
+
+# Test output
+*_test.go
+coverage.out
+
+# Docs generated locally (будут пересозданы в Stage 2)
+docs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker files themselves (не нужны внутри образа)
+Dockerfile
+docker-compose.yml
+
+*.md
+api.yaml
+*.exe
+*.ps1
+*.env.example
+.air.toml
+.github/
