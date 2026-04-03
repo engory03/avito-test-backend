@@ -18,3 +18,7 @@ type BookingJSON struct {
 type ListMyBookingsResponse struct {
 	Bookings []*BookingJSON `json:"bookings"`
 }
+
+type CreateBookingResponse struct {
+	Booking *BookingJSON `json:"booking"`
+}

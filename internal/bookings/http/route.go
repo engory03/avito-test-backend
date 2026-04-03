@@ -13,6 +13,7 @@ func RegisterBookingRoutes(r *gin.RouterGroup, bookingService service.BookingSer
 	g := r.Group("/bookings")
 	g.Use(middleware.AuthMiddleware(jwtManager), middleware.RoleMiddleware("user"))
 	{
+		g.POST("/create", handler.CreateBooking)
 		g.GET("/my", handler.MyBookings)
 	}
 }

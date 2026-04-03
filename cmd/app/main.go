@@ -23,6 +23,7 @@ import (
 	usersRepo "github.com/internships-backend/test-backend-engory03/internal/users/repository"
 	usersService "github.com/internships-backend/test-backend-engory03/internal/users/service"
 
+	bookingsConference "github.com/internships-backend/test-backend-engory03/internal/bookings/conference"
 	bookingsHttp "github.com/internships-backend/test-backend-engory03/internal/bookings/http"
 	bookingsModel "github.com/internships-backend/test-backend-engory03/internal/bookings/model"
 	bookingsRepo "github.com/internships-backend/test-backend-engory03/internal/bookings/repository"
@@ -134,7 +135,8 @@ func main() {
 	slotService := roomsService.NewSlotService(roomRepo, scheduleRepo, slotRepo)
 
 	bookingRepo := bookingsRepo.NewBookingRepository(db)
-	bookingService := bookingsService.NewBookingService(bookingRepo)
+	conferenceClient := bookingsConference.NewMockClientFromEnv()
+	bookingService := bookingsService.NewBookingService(bookingRepo, conferenceClient)
 
 	// Run seeds
 	// if err := seed.RunSeeds(db); err != nil {
