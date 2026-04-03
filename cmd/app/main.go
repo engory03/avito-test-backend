@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/gin-contrib/cors"
@@ -157,6 +158,10 @@ func main() {
 		bookingsHttp.RegisterBookingRoutes(api, bookingService, jwtManager)
 		roomsHttp.RegisterRoomRoutes(api, roomService, scheduleService, slotService, jwtManager)
 	}
+
+	r.GET("/_info", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
 
 	// Swagger docs
 	r.GET("/docs/*any", ginSwagger.WrapHandler(
