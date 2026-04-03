@@ -23,7 +23,10 @@ import (
 	usersRepo "github.com/internships-backend/test-backend-engory03/internal/users/repository"
 	usersService "github.com/internships-backend/test-backend-engory03/internal/users/service"
 
+	bookingsHttp "github.com/internships-backend/test-backend-engory03/internal/bookings/http"
 	bookingsModel "github.com/internships-backend/test-backend-engory03/internal/bookings/model"
+	bookingsRepo "github.com/internships-backend/test-backend-engory03/internal/bookings/repository"
+	bookingsService "github.com/internships-backend/test-backend-engory03/internal/bookings/service"
 
 	"github.com/internships-backend/test-backend-engory03/internal/shared/config"
 	"github.com/internships-backend/test-backend-engory03/internal/shared/utils"
@@ -118,6 +121,9 @@ func main() {
 	userRepo := usersRepo.NewUserRepository(db)
 	userService := usersService.NewUserService(userRepo)
 
+	refreshTokenRepo := authRepo.NewRefreshTokenRepository(db)
+	authService := authService.NewAuthService(userRepo, refreshTokenRepo, jwtManager)
+
 	roomRepo := roomsRepo.NewRoomRepository(db)
 	roomService := roomsService.NewRoomService(roomRepo)
 
@@ -127,8 +133,8 @@ func main() {
 	slotRepo := roomsRepo.NewSlotRepository(db)
 	slotService := roomsService.NewSlotService(roomRepo, scheduleRepo, slotRepo)
 
-	refreshTokenRepo := authRepo.NewRefreshTokenRepository(db)
-	authService := authService.NewAuthService(userRepo, refreshTokenRepo, jwtManager)
+	bookingRepo := bookingsRepo.NewBookingRepository(db)
+	bookingService := bookingsService.NewBookingService(bookingRepo)
 
 	// Run seeds
 	// if err := seed.RunSeeds(db); err != nil {
@@ -140,6 +146,7 @@ func main() {
 	{
 		authHttp.RegisterAuthRoutes(api, authService)
 		usersHttp.RegisterUserRoutes(api, userService, jwtManager)
+		bookingsHttp.RegisterBookingRoutes(api, bookingService, jwtManager)
 		roomsHttp.RegisterRoomRoutes(api, roomService, scheduleService, slotService, jwtManager)
 	}
 
