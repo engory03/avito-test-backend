@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	httphelper "github.com/internships-backend/test-backend-engory03/internal/shared/http"
 )
 
 func RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
@@ -15,18 +16,21 @@ func RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		roleValue, exists := c.Get("role")
 		if !exists {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "missing role in context"})
+			httphelper.JSONAPIError(c, http.StatusForbidden, "FORBIDDEN", "missing role in context")
+			c.Abort()
 			return
 		}
 
 		role, ok := roleValue.(string)
 		if !ok {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "invalid role type"})
+			httphelper.JSONAPIError(c, http.StatusForbidden, "FORBIDDEN", "invalid role type")
+			c.Abort()
 			return
 		}
 
 		if !allowed[role] {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden: insufficient role"})
+			httphelper.JSONAPIError(c, http.StatusForbidden, "FORBIDDEN", "forbidden: insufficient role")
+			c.Abort()
 			return
 		}
 
