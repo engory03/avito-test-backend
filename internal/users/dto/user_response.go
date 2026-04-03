@@ -11,7 +11,7 @@ import (
 // @Name UserResponse
 type UserResponse struct {
 	ID        uuid.UUID `json:"id" example:"a8098c1a-f86e-11da-bd1a-00112444be1e"`
-	Email     string    `json:"email" example:"ivanov@example.com"`
+	Email     string    `json:"email" example:"admin@mail.ru"`
 	Role      string    `json:"role" example:"admin"`
 	CreatedAt time.Time `json:"createdAt" example:"2025-11-12T19:45:00Z"`
 	UpdatedAt time.Time `json:"updatedAt" example:"2025-11-12T19:45:00Z"`
