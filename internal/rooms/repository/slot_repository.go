@@ -2,6 +2,7 @@ package repository
 
 import (
 	"github.com/google/uuid"
+	bookingsModel "github.com/internships-backend/test-backend-engory03/internal/bookings/model"
 	"github.com/internships-backend/test-backend-engory03/internal/rooms/model"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -32,7 +33,7 @@ func (r *slotRepository) ListActiveBookedSlotIDs(slotIDs []uuid.UUID) (map[uuid.
 		return map[uuid.UUID]struct{}{}, nil
 	}
 	var rows []uuid.UUID
-	err := r.db.Model(&model.Booking{}).
+	err := r.db.Model(&bookingsModel.Booking{}).
 		Where("slot_id IN ? AND status = ?", slotIDs, "active").
 		Distinct("slot_id").
 		Pluck("slot_id", &rows).Error

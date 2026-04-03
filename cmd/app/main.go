@@ -23,6 +23,8 @@ import (
 	usersRepo "github.com/internships-backend/test-backend-engory03/internal/users/repository"
 	usersService "github.com/internships-backend/test-backend-engory03/internal/users/service"
 
+	bookingsModel "github.com/internships-backend/test-backend-engory03/internal/bookings/model"
+
 	"github.com/internships-backend/test-backend-engory03/internal/shared/config"
 	"github.com/internships-backend/test-backend-engory03/internal/shared/utils"
 	"gorm.io/driver/postgres"
@@ -91,7 +93,7 @@ func main() {
 		&roomsModel.Room{},
 		&roomsModel.Schedule{},
 		&roomsModel.Slot{},
-		&roomsModel.Booking{},
+		&bookingsModel.Booking{},
 	); err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
