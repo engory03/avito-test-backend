@@ -89,6 +89,7 @@ func main() {
 		&usersModel.User{},
 		&authModel.RefreshToken{},
 		&roomsModel.Room{},
+		&roomsModel.Schedule{},
 	); err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
@@ -116,6 +117,9 @@ func main() {
 	roomRepo := roomsRepo.NewRoomRepository(db)
 	roomService := roomsService.NewRoomService(roomRepo)
 
+	scheduleRepo := roomsRepo.NewScheduleRepository(db)
+	scheduleService := roomsService.NewScheduleService(roomRepo, scheduleRepo)
+
 	refreshTokenRepo := authRepo.NewRefreshTokenRepository(db)
 	authService := authService.NewAuthService(userRepo, refreshTokenRepo, jwtManager)
 
@@ -129,7 +133,7 @@ func main() {
 	{
 		authHttp.RegisterAuthRoutes(api, authService)
 		usersHttp.RegisterUserRoutes(api, userService, jwtManager)
-		roomsHttp.RegisterRoomRoutes(api, roomService, jwtManager)
+		roomsHttp.RegisterRoomRoutes(api, roomService, scheduleService, jwtManager)
 	}
 
 	// Swagger docs

@@ -7,18 +7,25 @@ import (
 	"github.com/internships-backend/test-backend-engory03/internal/rooms/service"
 )
 
-func RegisterRoomRoutes(r *gin.RouterGroup, roomService service.RoomService, jwtManager *utils.JWTManager) {
-	handler := NewRoomHandler(roomService)
+func RegisterRoomRoutes(
+	r *gin.RouterGroup,
+	roomService service.RoomService,
+	scheduleService service.ScheduleService,
+	jwtManager *utils.JWTManager,
+) {
+	roomHandler := NewRoomHandler(roomService)
+	scheduleHandler := NewScheduleHandler(scheduleService)
 
 	g := r.Group("/rooms")
 	g.Use(middleware.AuthMiddleware(jwtManager))
 	{
-		g.GET("/list", handler.ListRooms)
+		g.GET("/list", roomHandler.ListRooms)
 
 		admin := g.Group("")
 		admin.Use(middleware.RoleMiddleware("admin"))
 		{
-			admin.POST("/create", handler.CreateRoom)
+			admin.POST("/create", roomHandler.CreateRoom)
+			admin.POST("/:roomId/schedule/create", scheduleHandler.CreateSchedule)
 		}
 	}
 }

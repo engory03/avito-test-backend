@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/google/uuid"
 	"github.com/internships-backend/test-backend-engory03/internal/rooms/model"
 	"gorm.io/gorm"
 )
@@ -8,6 +9,7 @@ import (
 type RoomRepository interface {
 	Create(room *model.Room) error
 	ListAll() ([]*model.Room, error)
+	ExistsByID(id uuid.UUID) (bool, error)
 }
 
 type roomRepository struct {
@@ -28,4 +30,10 @@ func (r *roomRepository) ListAll() ([]*model.Room, error) {
 		return nil, err
 	}
 	return rooms, nil
+}
+
+func (r *roomRepository) ExistsByID(id uuid.UUID) (bool, error) {
+	var count int64
+	err := r.db.Model(&model.Room{}).Where("id = ?", id).Count(&count).Error
+	return count > 0, err
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/internships-backend/test-backend-engory03/internal/rooms/dto"
 	"github.com/internships-backend/test-backend-engory03/internal/rooms/mapper"
 	"github.com/internships-backend/test-backend-engory03/internal/rooms/service"
+	_ "github.com/internships-backend/test-backend-engory03/internal/shared/dto"
 	httphelper "github.com/internships-backend/test-backend-engory03/internal/shared/http"
 )
 
@@ -27,10 +28,10 @@ func NewRoomHandler(s service.RoomService) *RoomHandler {
 // @Produce      json
 // @Param        data body dto.CreateRoomRequest true "Данные для создания переговорки"
 // @Success      201 {object} dto.CreateRoomResponse "Переговорка создана"
-// @Failure      400 {object} httphelper.ErrorResponse "Неверный запрос"
-// @Failure      401 {object} httphelper.ErrorResponse "Не авторизован"
-// @Failure      403 {object} httphelper.ErrorResponse "Доступ запрещён (требуется роль admin)"
-// @Failure      500 {object} httphelper.InternalErrorResponse "Внутренняя ошибка сервера"
+// @Failure      400 {object} shareddto.APIErrorResponse "Неверный запрос"
+// @Failure      401 {object} shareddto.APIErrorResponse "Не авторизован"
+// @Failure      403 {object} shareddto.APIErrorResponse "Доступ запрещён (требуется роль admin)"
+// @Failure      500 {object} shareddto.APIErrorResponse "Внутренняя ошибка сервера"
 // @Router       /rooms/create [post]
 func (h *RoomHandler) CreateRoom(c *gin.Context) {
 	var req dto.CreateRoomRequest
@@ -58,8 +59,8 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 // @Security     BearerAuth
 // @Produce      json
 // @Success      200 {object} dto.ListRoomsResponse "Список переговорок"
-// @Failure      401 {object} httphelper.ErrorResponse "Не авторизован"
-// @Failure      500 {object} httphelper.InternalErrorResponse "Внутренняя ошибка сервера"
+// @Failure      401 {object} shareddto.APIErrorResponse "Не авторизован"
+// @Failure      500 {object} shareddto.APIErrorResponse "Внутренняя ошибка сервера"
 // @Router       /rooms/list [get]
 func (h *RoomHandler) ListRooms(c *gin.Context) {
 	rooms, err := h.service.ListRooms()
