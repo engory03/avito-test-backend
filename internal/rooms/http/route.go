@@ -11,15 +11,18 @@ func RegisterRoomRoutes(
 	r *gin.RouterGroup,
 	roomService service.RoomService,
 	scheduleService service.ScheduleService,
+	slotService service.SlotService,
 	jwtManager *utils.JWTManager,
 ) {
 	roomHandler := NewRoomHandler(roomService)
 	scheduleHandler := NewScheduleHandler(scheduleService)
+	slotHandler := NewSlotHandler(slotService)
 
 	g := r.Group("/rooms")
 	g.Use(middleware.AuthMiddleware(jwtManager))
 	{
 		g.GET("/list", roomHandler.ListRooms)
+		g.GET("/:roomId/slots/list", slotHandler.ListSlots)
 
 		admin := g.Group("")
 		admin.Use(middleware.RoleMiddleware("admin"))
