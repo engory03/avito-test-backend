@@ -22,3 +22,7 @@ type ListMyBookingsResponse struct {
 type CreateBookingResponse struct {
 	Booking *BookingJSON `json:"booking"`
 }
+
+type CancelBookingResponse struct {
+	Booking *BookingJSON `json:"booking"`
+}

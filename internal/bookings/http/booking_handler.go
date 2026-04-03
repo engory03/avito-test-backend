@@ -110,3 +110,50 @@ func (h *BookingHandler) CreateBooking(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, dto.CreateBookingResponse{Booking: mapper.BookingToJSON(b)})
 }
+
+// CancelBooking godoc
+// @Summary      Отменить бронь (только своя бронь, только user)
+// @Description  Идемпотентно: повтор на уже отменённой брони — 200 с `status: cancelled`. Чужая бронь — 403 с сообщением из спецификации. Нет брони — 404.
+// @Tags         Bookings
+// @Security     BearerAuth
+// @Produce      json
+// @Param        bookingId path string true "Идентификатор брони (UUID)"
+// @Success      200 {object} dto.CancelBookingResponse "Бронь отменена или уже была отменена"
+// @Failure      401 {object} shareddto.APIErrorResponse "Не авторизован"
+// @Failure      403 {object} shareddto.APIErrorResponse "Не своя бронь или роль не user"
+// @Failure      404 {object} shareddto.APIErrorResponse "Бронь не найдена"
+// @Failure      500 {object} shareddto.APIErrorResponse "Внутренняя ошибка сервера"
+// @Router       /bookings/{bookingId}/cancel [post]
+func (h *BookingHandler) CancelBooking(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", "user_id not found in context")
+		return
+	}
+	uid, ok := userID.(uuid.UUID)
+	if !ok {
+		httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", "invalid user_id type")
+		return
+	}
+
+	bookingID, err := uuid.Parse(c.Param("bookingId"))
+	if err != nil {
+		httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", "invalid bookingId in path")
+		return
+	}
+
+	b, err := h.service.CancelBooking(uid, bookingID)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrBookingNotFound):
+			httphelper.JSONAPIError(c, http.StatusNotFound, "BOOKING_NOT_FOUND", err.Error())
+		case errors.Is(err, service.ErrCancelNotOwner):
+			httphelper.JSONAPIError(c, http.StatusForbidden, "FORBIDDEN", "cannot cancel another user's booking")
+		default:
+			httphelper.JSONAPIError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.CancelBookingResponse{Booking: mapper.BookingToJSON(b)})
+}

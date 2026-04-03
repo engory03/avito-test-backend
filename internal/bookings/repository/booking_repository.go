@@ -17,6 +17,8 @@ type BookingRepository interface {
 	ListByUserWithFutureSlots(userID uuid.UUID, nowUTC time.Time) ([]*model.Booking, error)
 	GetSlotByID(slotID uuid.UUID) (*roomsModel.Slot, error)
 	CreateActiveBookingIfSlotFree(booking *model.Booking, slotID uuid.UUID) error
+	GetByID(bookingID uuid.UUID) (*model.Booking, error)
+	MarkActiveBookingCancelled(bookingID uuid.UUID) error
 }
 
 type bookingRepository struct {
@@ -65,4 +67,25 @@ func (r *bookingRepository) CreateActiveBookingIfSlotFree(booking *model.Booking
 		}
 		return tx.Create(booking).Error
 	})
+}
+
+func (r *bookingRepository) GetByID(bookingID uuid.UUID) (*model.Booking, error) {
+	var b model.Booking
+	err := r.db.First(&b, "id = ?", bookingID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
+
+func (r *bookingRepository) MarkActiveBookingCancelled(bookingID uuid.UUID) error {
+	return r.db.Model(&model.Booking{}).
+		Where("id = ? AND status = ?", bookingID, "active").
+		Updates(map[string]interface{}{
+			"status":     "cancelled",
+			"updated_at": time.Now().UTC(),
+		}).Error
 }

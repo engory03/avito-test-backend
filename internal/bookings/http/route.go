@@ -15,5 +15,6 @@ func RegisterBookingRoutes(r *gin.RouterGroup, bookingService service.BookingSer
 	{
 		g.POST("/create", handler.CreateBooking)
 		g.GET("/my", handler.MyBookings)
+		g.POST("/:bookingId/cancel", handler.CancelBooking)
 	}
 }

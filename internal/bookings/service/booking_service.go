@@ -18,11 +18,14 @@ var (
 	ErrSlotInPast        = errors.New("slot is in the past")
 	ErrSlotAlreadyBooked = errors.New("slot is already booked")
 	ErrConferenceFailed  = errors.New("conference link could not be created")
+	ErrBookingNotFound   = errors.New("booking not found")
+	ErrCancelNotOwner    = errors.New("cannot cancel another user's booking")
 )
 
 type BookingService interface {
 	ListMyFutureBookings(userID uuid.UUID) ([]*model.Booking, error)
 	CreateBooking(ctx context.Context, userID uuid.UUID, req dto.CreateBookingRequest) (*model.Booking, error)
+	CancelBooking(userID, bookingID uuid.UUID) (*model.Booking, error)
 }
 
 type bookingService struct {
@@ -76,4 +79,34 @@ func (s *bookingService) CreateBooking(ctx context.Context, userID uuid.UUID, re
 		return nil, err
 	}
 	return b, nil
+}
+
+func (s *bookingService) CancelBooking(userID, bookingID uuid.UUID) (*model.Booking, error) {
+	b, err := s.repo.GetByID(bookingID)
+	if err != nil {
+		return nil, err
+	}
+	if b == nil {
+		return nil, ErrBookingNotFound
+	}
+	if b.UserID != userID {
+		return nil, ErrCancelNotOwner
+	}
+	if b.Status == "cancelled" {
+		return b, nil
+	}
+	if b.Status != "active" {
+		return nil, fmt.Errorf("unexpected booking status: %s", b.Status)
+	}
+	if err := s.repo.MarkActiveBookingCancelled(bookingID); err != nil {
+		return nil, err
+	}
+	updated, err := s.repo.GetByID(bookingID)
+	if err != nil {
+		return nil, err
+	}
+	if updated == nil {
+		return nil, ErrBookingNotFound
+	}
+	return updated, nil
 }
