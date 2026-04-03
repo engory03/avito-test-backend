@@ -13,6 +13,11 @@ import (
 	authRepo "github.com/internships-backend/test-backend-engory03/internal/auth/repository"
 	authService "github.com/internships-backend/test-backend-engory03/internal/auth/service"
 
+	roomsHttp "github.com/internships-backend/test-backend-engory03/internal/rooms/http"
+	roomsModel "github.com/internships-backend/test-backend-engory03/internal/rooms/model"
+	roomsRepo "github.com/internships-backend/test-backend-engory03/internal/rooms/repository"
+	roomsService "github.com/internships-backend/test-backend-engory03/internal/rooms/service"
+
 	usersHttp "github.com/internships-backend/test-backend-engory03/internal/users/http"
 	usersModel "github.com/internships-backend/test-backend-engory03/internal/users/model"
 	usersRepo "github.com/internships-backend/test-backend-engory03/internal/users/repository"
@@ -83,6 +88,7 @@ func main() {
 	if err := db.AutoMigrate(
 		&usersModel.User{},
 		&authModel.RefreshToken{},
+		&roomsModel.Room{},
 	); err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
@@ -106,6 +112,10 @@ func main() {
 
 	userRepo := usersRepo.NewUserRepository(db)
 	userService := usersService.NewUserService(userRepo)
+
+	roomRepo := roomsRepo.NewRoomRepository(db)
+	roomService := roomsService.NewRoomService(roomRepo)
+
 	refreshTokenRepo := authRepo.NewRefreshTokenRepository(db)
 	authService := authService.NewAuthService(userRepo, refreshTokenRepo, jwtManager)
 
@@ -119,6 +129,7 @@ func main() {
 	{
 		authHttp.RegisterAuthRoutes(api, authService)
 		usersHttp.RegisterUserRoutes(api, userService, jwtManager)
+		roomsHttp.RegisterRoomRoutes(api, roomService, jwtManager)
 	}
 
 	// Swagger docs
