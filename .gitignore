@@ -1,0 +1,56 @@
+# -------------------------
+# Go
+# -------------------------
+# Binaries
+/bin/
+/dist/
+/build/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Go build cache
+/cache/
+/tmp/
+*.out
+
+# Go workspaces
+go.work
+go.work.sum
+
+# Air temporary build directory
+/tmp
+
+# -------------------------
+# Environment files
+# -------------------------
+.env
+.env.*
+!.env.example
+
+# -------------------------
+# IDE / Editor
+# -------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# -------------------------
+# Logs
+# -------------------------
+*.log
+logs/
+log/
+
+# -------------------------
+# System files
+# -------------------------
+.DS_Store
+Thumbs.db
+
+# Misc
+/docs
