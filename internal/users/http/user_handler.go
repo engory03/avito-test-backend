@@ -21,35 +21,6 @@ func NewUserHandler(s service.UserService) *UserHandler {
 	return &UserHandler{service: s}
 }
 
-// CreateUser godoc
-// @Summary Create user
-// @Tags Users
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param user body dto.CreateUserRequest true "New user"
-// @Success 201 {object} dto.UserResponse
-// @Failure 400 {object} shareddto.ErrorDefaultResponse
-// @Failure 500 {object} shareddto.ErrorDefaultResponse
-// @Router /users [post]
-func (h *UserHandler) CreateUser(c *gin.Context) {
-	var req dto.CreateUserRequest
-
-	if !httphelper.BindJSON(c, &req) {
-		return
-	}
-
-	user, err := h.service.CreateUser(req)
-	if err != nil {
-		httphelper.JSONError(c, http.StatusInternalServerError, err)
-		return
-	}
-
-	resp := mapper.NewUserResponse(user)
-
-	c.JSON(http.StatusCreated, resp)
-}
-
 // GetCurrentUser godoc
 // @Summary Get current user
 // @Description Returns the authenticated user
