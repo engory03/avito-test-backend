@@ -7,27 +7,31 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/internships-backend/test-backend-engory03/internal/auth/dto"
+	"github.com/internships-backend/test-backend-engory03/internal/auth/dummy"
 	"github.com/internships-backend/test-backend-engory03/internal/auth/model"
 	"github.com/internships-backend/test-backend-engory03/internal/auth/repository"
 	"github.com/internships-backend/test-backend-engory03/internal/shared/utils"
-	usersmodel "github.com/internships-backend/test-backend-engory03/internal/users/model"
-	usersrepo "github.com/internships-backend/test-backend-engory03/internal/users/repository"
+	usersModel "github.com/internships-backend/test-backend-engory03/internal/users/model"
+	usersRepo "github.com/internships-backend/test-backend-engory03/internal/users/repository"
 )
+
+var ErrInvalidDummyRole = errors.New("invalid role for dummy login")
 
 type AuthService interface {
 	Register(req dto.RegisterRequest) (*dto.AuthTokens, error)
 	Login(req dto.LoginRequest) (*dto.AuthTokens, error)
 	Refresh(refreshToken string) (*dto.AuthTokens, error)
 	Logout(refreshToken string) error
+	DummyLogin(req dto.DummyLoginRequest) (string, error)
 }
 
 type authService struct {
-	userRepo    usersrepo.UserRepository
+	userRepo    usersRepo.UserRepository
 	refreshRepo repository.RefreshTokenRepository
 	jwt         *utils.JWTManager
 }
 
-func NewAuthService(u usersrepo.UserRepository, r repository.RefreshTokenRepository, j *utils.JWTManager) AuthService {
+func NewAuthService(u usersRepo.UserRepository, r repository.RefreshTokenRepository, j *utils.JWTManager) AuthService {
 	return &authService{userRepo: u, refreshRepo: r, jwt: j}
 }
 
@@ -45,7 +49,7 @@ func (s *authService) Register(req dto.RegisterRequest) (*dto.AuthTokens, error)
 	}
 
 	// 3. Create user model
-	user := &usersmodel.User{
+	user := &usersModel.User{
 		ID:           uuid.New(),
 		Email:        req.Email,
 		PasswordHash: hashed,
@@ -126,7 +130,7 @@ func (s *authService) Refresh(refreshToken string) (*dto.AuthTokens, error) {
 		return nil, errors.New("invalid refresh token")
 	}
 
-	userID, err := uuid.Parse(claims.Subject)
+	userID, err := uuid.Parse(claims.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid user ID in token: %w", err)
 	}
@@ -163,4 +167,17 @@ func (s *authService) Refresh(refreshToken string) (*dto.AuthTokens, error) {
 
 func (s *authService) Logout(refreshToken string) error {
 	return s.refreshRepo.Delete(refreshToken)
+}
+
+func (s *authService) DummyLogin(req dto.DummyLoginRequest) (string, error) {
+	var uid uuid.UUID
+	switch req.Role {
+	case "admin":
+		uid = dummy.DummyAdminID
+	case "user":
+		uid = dummy.DummyUserID
+	default:
+		return "", ErrInvalidDummyRole
+	}
+	return s.jwt.GenerateAccessToken(uid, req.Role)
 }

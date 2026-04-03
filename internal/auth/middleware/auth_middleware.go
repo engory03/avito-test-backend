@@ -35,9 +35,9 @@ func AuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
 			return
 		}
 
-		userID, err := uuid.Parse(claims.Subject)
+		userID, err := uuid.Parse(claims.UserID)
 		if err != nil {
-			httphelper.JSONAPIError(c, http.StatusUnauthorized, "UNAUTHORIZED", "invalid subject")
+			httphelper.JSONAPIError(c, http.StatusUnauthorized, "UNAUTHORIZED", "invalid user id")
 			c.Abort()
 			return
 		}

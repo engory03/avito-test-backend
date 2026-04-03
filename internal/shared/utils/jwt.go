@@ -15,12 +15,14 @@ type JWTManager struct {
 }
 
 type AccessTokenClaims struct {
-	Role string `json:"role"`
+	Role   string `json:"role"`
+	UserID string `json:"user_id"`
 	jwt.RegisteredClaims
 }
 
 type RefreshTokenClaims struct {
-	Role string `json:"role"`
+	Role   string `json:"role"`
+	UserID string `json:"user_id"`
 	jwt.RegisteredClaims
 }
 
@@ -35,9 +37,9 @@ func NewJWTManager(accessSecret, refreshSecret string) *JWTManager {
 
 func (j *JWTManager) GenerateAccessToken(userID uuid.UUID, role string) (string, error) {
 	claims := &AccessTokenClaims{
-		Role: role,
+		Role:   role,
+		UserID: userID.String(),
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   userID.String(),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.AccessTokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
@@ -49,9 +51,9 @@ func (j *JWTManager) GenerateAccessToken(userID uuid.UUID, role string) (string,
 
 func (j *JWTManager) GenerateRefreshToken(userID uuid.UUID, role string) (string, error) {
 	claims := &RefreshTokenClaims{
-		Role: role,
+		Role:   role,
+		UserID: userID.String(),
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   userID.String(),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.RefreshTokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},

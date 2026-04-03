@@ -19,6 +19,37 @@ func NewAuthHandler(s service.AuthService) *AuthHandler {
 	return &AuthHandler{service: s}
 }
 
+// DummyLogin godoc
+// @Summary      Получить тестовый JWT по роли (ОБЯЗАТЕЛЬНО). Доступен без авторизации.
+// @Description  Выдаёт access JWT: фиксированный `user_id` (и `sub`) для роли admin и отдельный для user; в токене также `role`. Только значения admin и user.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body body dto.DummyLoginRequest true "Поле role: admin или user"
+// @Success      200 {object} dto.TokenResponse "JWT для Authorization Bearer"
+// @Failure      400 {object} shareddto.APIErrorResponse "Недопустимое значение роли"
+// @Failure      500 {object} shareddto.APIErrorResponse "Внутренняя ошибка сервера"
+// @Router       /dummyLogin [post]
+func (h *AuthHandler) DummyLogin(c *gin.Context) {
+	var req dto.DummyLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
+		return
+	}
+
+	token, err := h.service.DummyLogin(req)
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidDummyRole) {
+			httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
+			return
+		}
+		httphelper.JSONAPIError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.TokenResponse{Token: token})
+}
+
 // Register godoc
 // @Summary Register a new user
 // @Tags Auth

@@ -8,8 +8,9 @@ import (
 func RegisterAuthRoutes(r *gin.RouterGroup, authService service.AuthService) {
 	authHandler := NewAuthHandler(authService)
 
-	authGroup := r.Group("/auth")
+	authGroup := r.Group("")
 	{
+		authGroup.POST("/dummyLogin", authHandler.DummyLogin)
 		authGroup.POST("/register", authHandler.Register)
 		authGroup.POST("/login", authHandler.Login)
 		authGroup.POST("/refresh", authHandler.Refresh)
