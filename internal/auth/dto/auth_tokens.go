@@ -1,7 +1,7 @@
 package dto
 
-// AuthTokens represents authentication tokens.
-// @Description Authentication tokens response payload
+// AuthTokens представляет JWT-токены.
+// @Description Ответ с JWT-токенами
 // @Name AuthTokens
 type AuthTokens struct {
 	AccessToken  string `json:"accessToken" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`

@@ -51,117 +51,118 @@ func (h *AuthHandler) DummyLogin(c *gin.Context) {
 }
 
 // Register godoc
-// @Summary Register a new user
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Param register body dto.RegisterRequest true "User registration data"
-// @Success 200 {object} dto.AuthTokens
-// @Failure 400 {object} shareddto.ErrorDefaultResponse
-// @Failure 409 {object} shareddto.ErrorDefaultResponse
-// @Router /auth/register [post]
+// @Summary      Регистрация нового пользователя
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        register body dto.RegisterRequest true "Данные для регистрации пользователя"
+// @Success      200 {object} dto.TokenResponse "JWT для Authorization Bearer"
+// @Failure      400 {object} shareddto.ErrorDefaultResponse "Неверный запрос"
+// @Failure      409 {object} shareddto.ErrorDefaultResponse "Пользователь с таким email уже существует"
+// @Router       /register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req dto.RegisterRequest
-	if !httphelper.BindJSON(c, &req) {
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
 		return
 	}
 
 	tokens, err := h.service.Register(req)
 	if err != nil {
-		if err.Error() == "user with this username already exists" {
-			httphelper.JSONError(c, http.StatusConflict, err)
+		if err.Error() == "user with this email already exists" {
+			httphelper.JSONAPIError(c, http.StatusConflict, "EMAIL_EXISTS", err.Error())
 		} else {
-			httphelper.JSONError(c, http.StatusBadRequest, err)
+			httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
 		}
 		return
 	}
 
 	httphelper.SetRefreshTokenCookie(c, tokens.RefreshToken)
-	httphelper.JSONAccessToken(c, tokens.AccessToken)
+	c.JSON(http.StatusOK, dto.TokenResponse{Token: tokens.AccessToken})
 }
 
 // Login godoc
-// @Summary Login user
+// @Summary Вход пользователя
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Param login body dto.LoginRequest true "User credentials"
-// @Success 200 {object} dto.AuthTokens
-// @Failure 400 {object} shareddto.ErrorDefaultResponse
-// @Failure 401 {object} shareddto.ErrorDefaultResponse
-// @Router /auth/login [post]
+// @Param login body dto.LoginRequest true "Учетные данные пользователя"
+// @Success 200 {object} dto.TokenResponse "JWT для Authorization Bearer"
+// @Failure 400 {object} shareddto.ErrorDefaultResponse "Неверный запрос (ошибка валидации)"
+// @Failure 401 {object} shareddto.ErrorDefaultResponse "Неверная почта или пароль"
+// @Router /login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req dto.LoginRequest
-	if !httphelper.BindJSON(c, &req) {
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
 		return
 	}
 
 	tokens, err := h.service.Login(req)
 	if err != nil {
-		httphelper.JSONError(c, http.StatusUnauthorized, err)
+		httphelper.JSONAPIError(c, http.StatusUnauthorized, "UNAUTHORIZED", err.Error())
 		return
 	}
 
 	httphelper.SetRefreshTokenCookie(c, tokens.RefreshToken)
-	httphelper.JSONAccessToken(c, tokens.AccessToken)
+	c.JSON(http.StatusOK, dto.TokenResponse{Token: tokens.AccessToken})
 }
 
 // Refresh godoc
-// @Summary Refresh access token
+// @Summary Обновить access token
 // @Tags Auth
 // @Produce json
-// @Success 200 {object} dto.AuthTokens
-// @Failure 400 {object} shareddto.ErrorDefaultResponse
-// @Failure 401 {object} shareddto.ErrorDefaultResponse
-// @Router /auth/refresh [post]
+// @Success 200 {object} dto.TokenResponse "JWT для Authorization Bearer"
+// @Failure 400 {object} shareddto.ErrorDefaultResponse "Неверный запрос (refresh token отсутствует или некорректен)"
+// @Failure 401 {object} shareddto.ErrorDefaultResponse "Неавторизован (refresh token невалиден или истёк)"
+// @Router /refresh [post]
 func (h *AuthHandler) Refresh(c *gin.Context) {
-	// Extract token from httpOnly cookie
+	// Извлекаем токен из HTTP-only cookie
 	refreshToken, err := httphelper.GetRefreshTokenFromCookie(c)
 	if err != nil {
-		httphelper.JSONError(c, http.StatusBadRequest, errors.New("refresh token cookie missing"))
+		httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", "refresh token cookie missing")
 		return
 	}
 
-	// Attempt to refresh tokens
+	// Пытаемся обновить токены
 	tokens, err := h.service.Refresh(refreshToken)
 	if err != nil {
-		httphelper.JSONError(c, http.StatusUnauthorized, err)
+		httphelper.JSONAPIError(c, http.StatusUnauthorized, "UNAUTHORIZED", err.Error())
 		return
 	}
 
-	// Rotate refresh token cookie
+	// Обновляем refresh token cookie
 	httphelper.SetRefreshTokenCookie(c, tokens.RefreshToken)
 
-	// Return access token in JSON body
-	httphelper.JSONAccessToken(c, tokens.AccessToken)
+	// Возвращаем access token в JSON body
+	c.JSON(http.StatusOK, dto.TokenResponse{Token: tokens.AccessToken})
 }
 
 // Logout godoc
-// @Summary Logout user (invalidate refresh token)
+// @Summary Выход пользователя (удаление refresh token)
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Success 200 {object} shareddto.MessageDefaultResponse
-// @Failure 400 {object} shareddto.ErrorDefaultResponse
-// @Failure 500 {object} shareddto.ErrorDefaultResponse
-// @Router /auth/logout [post]
+// @Success 200 {object} shareddto.MessageDefaultResponse "Токены успешно удалены"
+// @Failure 400 {object} shareddto.ErrorDefaultResponse "Неверный запрос (refresh token отсутствует или некорректен)"
+// @Failure 500 {object} shareddto.ErrorDefaultResponse "Внутренняя ошибка сервера"
+// @Router /logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
-	// Read refresh token from HTTP-only cookie
+	// Чтение refresh token из HTTP-only cookie
 	refreshToken, err := httphelper.GetRefreshTokenFromCookie(c)
 	if err != nil {
-		// cookie missing or invalid
-		httphelper.JSONError(c, http.StatusBadRequest, errors.New("refresh token cookie not found"))
+		// cookie отсутствуют или некорректны
+		httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", "refresh token cookie not found")
 		return
 	}
 
-	// Try to remove refresh token from store (service should handle missing token gracefully)
+	// Пытаемся удалить refresh token из хранилища (сервис должен корректно обрабатывать отсутствие токена)
 	if err := h.service.Logout(refreshToken); err != nil {
-		// return 500 only on internal error; if token was already gone, service can return nil
-		httphelper.JSONError(c, http.StatusInternalServerError, err)
+		// возвращать 500 только при внутренней ошибке; если токен уже был удалён, сервис может вернуть nil
+		httphelper.JSONAPIError(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		return
 	}
 
-	// Clear cookie on client
 	httphelper.ClearRefreshTokenCookie(c)
 	c.JSON(http.StatusOK, shareddto.MessageDefaultResponse{Message: "ok"})
 }
