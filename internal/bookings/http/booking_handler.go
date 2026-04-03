@@ -157,3 +157,44 @@ func (h *BookingHandler) CancelBooking(c *gin.Context) {
 
 	c.JSON(http.StatusOK, dto.CancelBookingResponse{Booking: mapper.BookingToJSON(b)})
 }
+
+// ListAllBookings godoc
+// @Summary      Список всех броней с пагинацией (только admin)
+// @Description  Параметры `page` и `pageSize` опциональны (по умолчанию 1 и 20). Максимум `pageSize` — 100.
+// @Tags         Bookings
+// @Security     BearerAuth
+// @Produce      json
+// @Param        page query int false "Номер страницы (с 1), по умолчанию 1" minimum(1) default(1)
+// @Param        pageSize query int false "Размер страницы, по умолчанию 20, максимум 100" minimum(1) maximum(100) default(20)
+// @Success      200 {object} dto.ListBookingsAdminResponse "Список всех броней"
+// @Failure      400 {object} shareddto.APIErrorResponse "Некорректные параметры пагинации"
+// @Failure      401 {object} shareddto.APIErrorResponse "Не авторизован"
+// @Failure      403 {object} shareddto.APIErrorResponse "Доступ запрещён (только admin)"
+// @Failure      500 {object} shareddto.APIErrorResponse "Внутренняя ошибка сервера"
+// @Router       /bookings/list [get]
+func (h *BookingHandler) ListAllBookings(c *gin.Context) {
+	page, pageSize, ok := parseBookingListPagination(c)
+	if !ok {
+		httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", "invalid page or pageSize")
+		return
+	}
+
+	rows, total, err := h.service.ListAllBookingsPaged(page, pageSize)
+	if err != nil {
+		httphelper.JSONAPIError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+		return
+	}
+
+	out := make([]*dto.BookingJSON, 0, len(rows))
+	for _, b := range rows {
+		out = append(out, mapper.BookingToJSON(b))
+	}
+	c.JSON(http.StatusOK, dto.ListBookingsAdminResponse{
+		Bookings: out,
+		Pagination: dto.PaginationJSON{
+			Page:     page,
+			PageSize: pageSize,
+			Total:    int(total),
+		},
+	})
+}

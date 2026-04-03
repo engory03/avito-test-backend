@@ -26,6 +26,7 @@ type BookingService interface {
 	ListMyFutureBookings(userID uuid.UUID) ([]*model.Booking, error)
 	CreateBooking(ctx context.Context, userID uuid.UUID, req dto.CreateBookingRequest) (*model.Booking, error)
 	CancelBooking(userID, bookingID uuid.UUID) (*model.Booking, error)
+	ListAllBookingsPaged(page, pageSize int) (bookings []*model.Booking, total int64, err error)
 }
 
 type bookingService struct {
@@ -109,4 +110,8 @@ func (s *bookingService) CancelBooking(userID, bookingID uuid.UUID) (*model.Book
 		return nil, ErrBookingNotFound
 	}
 	return updated, nil
+}
+
+func (s *bookingService) ListAllBookingsPaged(page, pageSize int) ([]*model.Booking, int64, error) {
+	return s.repo.ListAllPaged(page, pageSize)
 }

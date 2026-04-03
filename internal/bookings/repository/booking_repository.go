@@ -19,6 +19,7 @@ type BookingRepository interface {
 	CreateActiveBookingIfSlotFree(booking *model.Booking, slotID uuid.UUID) error
 	GetByID(bookingID uuid.UUID) (*model.Booking, error)
 	MarkActiveBookingCancelled(bookingID uuid.UUID) error
+	ListAllPaged(page, pageSize int) (bookings []*model.Booking, total int64, err error)
 }
 
 type bookingRepository struct {
@@ -88,4 +89,23 @@ func (r *bookingRepository) MarkActiveBookingCancelled(bookingID uuid.UUID) erro
 			"status":     "cancelled",
 			"updated_at": time.Now().UTC(),
 		}).Error
+}
+
+func (r *bookingRepository) ListAllPaged(page, pageSize int) ([]*model.Booking, int64, error) {
+	var total int64
+	base := r.db.Model(&model.Booking{})
+	if err := base.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var rows []*model.Booking
+	offset := (page - 1) * pageSize
+	err := r.db.Model(&model.Booking{}).
+		Order("created_at DESC").
+		Offset(offset).
+		Limit(pageSize).
+		Find(&rows).Error
+	if err != nil {
+		return nil, 0, err
+	}
+	return rows, total, nil
 }
