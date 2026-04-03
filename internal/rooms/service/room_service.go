@@ -13,6 +13,7 @@ var ErrInvalidCapacity = errors.New("capacity must be greater than zero")
 
 type RoomService interface {
 	CreateRoom(req dto.CreateRoomRequest) (*model.Room, error)
+	ListRooms() ([]*model.Room, error)
 }
 
 type roomService struct {
@@ -38,4 +39,8 @@ func (s *roomService) CreateRoom(req dto.CreateRoomRequest) (*model.Room, error)
 		return nil, err
 	}
 	return room, nil
+}
+
+func (s *roomService) ListRooms() ([]*model.Room, error) {
+	return s.repo.ListAll()
 }

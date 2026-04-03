@@ -11,8 +11,14 @@ func RegisterRoomRoutes(r *gin.RouterGroup, roomService service.RoomService, jwt
 	handler := NewRoomHandler(roomService)
 
 	g := r.Group("/rooms")
-	g.Use(middleware.AuthMiddleware(jwtManager), middleware.RoleMiddleware("admin"))
+	g.Use(middleware.AuthMiddleware(jwtManager))
 	{
-		g.POST("/create", handler.CreateRoom)
+		g.GET("/list", handler.ListRooms)
+
+		admin := g.Group("")
+		admin.Use(middleware.RoleMiddleware("admin"))
+		{
+			admin.POST("/create", handler.CreateRoom)
+		}
 	}
 }

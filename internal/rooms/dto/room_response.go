@@ -17,3 +17,7 @@ type RoomJSON struct {
 type CreateRoomResponse struct {
 	Room *RoomJSON `json:"room"`
 }
+
+type ListRoomsResponse struct {
+	Rooms []*RoomJSON `json:"rooms"`
+}
