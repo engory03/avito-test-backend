@@ -58,6 +58,7 @@ func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 // GetUserById godoc
 // @Summary Get user by ID
 // @Tags Users
+// @Security BearerAuth
 // @Produce json
 // @Param id path string true "User ID (uuid)"
 // @Success 200 {object} dto.UserResponse
@@ -86,6 +87,7 @@ func (h *UserHandler) GetUserById(c *gin.Context) {
 // GetAllUsers godoc
 // @Summary Get all users
 // @Tags Users
+// @Security BearerAuth
 // @Produce json
 // @Success 200 {array} dto.UserResponse
 // @Router /users [get]

@@ -1,7 +1,7 @@
 package dto
 
-// CreateUserRequest represents a user registration request.
-// @Description User registration request payload
+// CreateUserRequest — создание пользователя администратором.
+// @Description Запрос на создание пользователя
 // @Name CreateUserRequest
 type CreateUserRequest struct {
 	Email    string `json:"email" binding:"required,email" example:"ivanov@example.com"`

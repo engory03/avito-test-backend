@@ -6,8 +6,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// UserResponse represents the structure of a user returned in API responses.
-// @Description User response payload.
+// UserResponse — данные пользователя в ответе API.
+// @Description Ответ с данными пользователя
 // @Name UserResponse
 type UserResponse struct {
 	ID        uuid.UUID `json:"id" example:"a8098c1a-f86e-11da-bd1a-00112444be1e"`
