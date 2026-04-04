@@ -240,7 +240,7 @@ func doJSON(t *testing.T, ctx context.Context, client *http.Client, method, url,
 	var req *http.Request
 	var err error
 	if method == http.MethodGet || reqBody == nil {
-		req, err = http.NewRequestWithContext(ctx, method, url, nil)
+		req, err = http.NewRequestWithContext(ctx, method, url, http.NoBody)
 	} else {
 		b, mErr := json.Marshal(reqBody)
 		if mErr != nil {

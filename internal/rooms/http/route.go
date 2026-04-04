@@ -3,8 +3,8 @@ package http
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/internships-backend/test-backend-engory03/internal/auth/middleware"
-	"github.com/internships-backend/test-backend-engory03/internal/shared/utils"
 	"github.com/internships-backend/test-backend-engory03/internal/rooms/service"
+	"github.com/internships-backend/test-backend-engory03/internal/shared/utils"
 )
 
 func RegisterRoomRoutes(

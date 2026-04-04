@@ -35,3 +35,4 @@ api.yaml
 *.env.example
 .air.toml
 .github/
+assets/
