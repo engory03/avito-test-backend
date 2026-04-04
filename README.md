@@ -87,7 +87,7 @@ make test-e2e
 .\tasks.ps1 test-e2e
 ```
 
-Провести нагрузочное тестирование (load testing)
+Провести нагрузочное тестирование (load testing):
 
 ```sh
 # linux
@@ -108,6 +108,16 @@ make loadtest
 > .\tasks.ps1 up
 > .\tasks.ps1 seed
 > ```
+
+Прогнать линтер:
+
+```sh
+# linux
+make lint
+
+# windows
+.\tasks.ps1 lint
+```
 
 ## Conference Service (мок) и сбои при создании брони
 
