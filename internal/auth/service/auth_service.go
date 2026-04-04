@@ -57,8 +57,8 @@ func (s *authService) Register(req dto.RegisterRequest) (*dto.AuthTokens, error)
 	}
 
 	// 4. Save to DB
-	if err := s.userRepo.Create(user); err != nil {
-		return nil, err
+	if createErr := s.userRepo.Create(user); createErr != nil {
+		return nil, createErr
 	}
 
 	// 5. Generate JWTs

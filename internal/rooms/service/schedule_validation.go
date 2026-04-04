@@ -17,7 +17,7 @@ func (e *ScheduleValidationError) Error() string {
 	return e.Message
 }
 
-var scheduleTimePattern = regexp.MustCompile(`^([01]?[0-9]|2[0-3]):[0-5][0-9]$`)
+var scheduleTimePattern = regexp.MustCompile(`^([01]?\d|2[0-3]):[0-5]\d$`)
 
 func validateSchedulePayload(req *dto.ScheduleCreateRequest) error {
 	if len(req.DaysOfWeek) == 0 {

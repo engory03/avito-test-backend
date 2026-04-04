@@ -58,13 +58,13 @@ func TestMain(m *testing.M) {
 		log.Fatalf("e2e gorm open: %v", err)
 	}
 
-	if err := app.MigrateDB(db); err != nil {
+	if migErr := app.MigrateDB(db); migErr != nil {
 		terminateContainer(container)
-		log.Fatalf("e2e migrate: %v", err)
+		log.Fatalf("e2e migrate: %v", migErr)
 	}
-	if err := dummy.EnsureUsersInDB(db); err != nil {
+	if seedErr := dummy.EnsureUsersInDB(db); seedErr != nil {
 		terminateContainer(container)
-		log.Fatalf("e2e dummy users: %v", err)
+		log.Fatalf("e2e dummy users: %v", seedErr)
 	}
 
 	engine := app.NewEngine(db, app.EngineConfig{

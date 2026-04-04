@@ -45,8 +45,8 @@ func (h *ScheduleHandler) CreateSchedule(c *gin.Context) {
 	}
 
 	var req dto.ScheduleCreateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", bindErr.Error())
 		return
 	}
 

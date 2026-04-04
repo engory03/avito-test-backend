@@ -99,8 +99,8 @@ func (s *bookingService) CancelBooking(userID, bookingID uuid.UUID) (*model.Book
 	if b.Status != "active" {
 		return nil, fmt.Errorf("unexpected booking status: %s", b.Status)
 	}
-	if err := s.repo.MarkActiveBookingCancelled(bookingID); err != nil {
-		return nil, err
+	if cancelErr := s.repo.MarkActiveBookingCancelled(bookingID); cancelErr != nil {
+		return nil, cancelErr
 	}
 	updated, err := s.repo.GetByID(bookingID)
 	if err != nil {

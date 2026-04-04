@@ -12,19 +12,13 @@ func RegisterBookingRoutes(r *gin.RouterGroup, bookingService service.BookingSer
 
 	g := r.Group("/bookings")
 	g.Use(middleware.AuthMiddleware(jwtManager))
-	{
-		user := g.Group("")
-		user.Use(middleware.RoleMiddleware("user"))
-		{
-			user.POST("/create", handler.CreateBooking)
-			user.GET("/my", handler.MyBookings)
-			user.POST("/:bookingId/cancel", handler.CancelBooking)
-		}
+	user := g.Group("")
+	user.Use(middleware.RoleMiddleware("user"))
+	user.POST("/create", handler.CreateBooking)
+	user.GET("/my", handler.MyBookings)
+	user.POST("/:bookingId/cancel", handler.CancelBooking)
 
-		admin := g.Group("")
-		admin.Use(middleware.RoleMiddleware("admin"))
-		{
-			admin.GET("/list", handler.ListAllBookings)
-		}
-	}
+	admin := g.Group("")
+	admin.Use(middleware.RoleMiddleware("admin"))
+	admin.GET("/list", handler.ListAllBookings)
 }

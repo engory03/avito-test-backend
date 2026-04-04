@@ -94,12 +94,10 @@ func NewEngine(db *gorm.DB, cfg EngineConfig) *gin.Engine {
 	bookingService := bookingsService.NewBookingService(bookingRepo, conferenceClient)
 
 	api := r.Group("/api")
-	{
-		authHttp.RegisterAuthRoutes(api, authService)
-		usersHttp.RegisterUserRoutes(api, userService, jwtManager)
-		bookingsHttp.RegisterBookingRoutes(api, bookingService, jwtManager)
-		roomsHttp.RegisterRoomRoutes(api, roomService, scheduleService, slotService, jwtManager)
-	}
+	authHttp.RegisterAuthRoutes(api, authService)
+	usersHttp.RegisterUserRoutes(api, userService, jwtManager)
+	bookingsHttp.RegisterBookingRoutes(api, bookingService, jwtManager)
+	roomsHttp.RegisterRoomRoutes(api, roomService, scheduleService, slotService, jwtManager)
 
 	r.GET("/_info", func(c *gin.Context) {
 		c.Status(http.StatusOK)

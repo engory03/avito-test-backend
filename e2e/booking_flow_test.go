@@ -235,7 +235,7 @@ func cancelBooking(t *testing.T, ctx context.Context, client *http.Client, base,
 	return out.Booking
 }
 
-func doJSON(t *testing.T, ctx context.Context, client *http.Client, method, url, bearer string, reqBody any, respBody any) (int, []byte) {
+func doJSON(t *testing.T, ctx context.Context, client *http.Client, method, url, bearer string, reqBody, respBody any) (statusCode int, respRaw []byte) {
 	t.Helper()
 	var req *http.Request
 	var err error
@@ -262,18 +262,18 @@ func doJSON(t *testing.T, ctx context.Context, client *http.Client, method, url,
 		t.Fatalf("request %s %s: %v", method, url, err)
 	}
 	defer res.Body.Close()
-	raw, err := io.ReadAll(res.Body)
+	respRaw, err = io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatalf("read response: %v", err)
 	}
-	if respBody != nil && len(raw) > 0 {
-		if uErr := json.Unmarshal(raw, respBody); uErr != nil {
+	if respBody != nil && len(respRaw) > 0 {
+		if uErr := json.Unmarshal(respRaw, respBody); uErr != nil {
 			if res.StatusCode < 300 {
-				t.Fatalf("decode JSON (%s %s): %v body=%s", method, url, uErr, raw)
+				t.Fatalf("decode JSON (%s %s): %v body=%s", method, url, uErr, respRaw)
 			}
 		}
 	}
-	return res.StatusCode, raw
+	return res.StatusCode, respRaw
 }
 
 func apiErrDetail(raw []byte) string {

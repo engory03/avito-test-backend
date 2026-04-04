@@ -20,15 +20,11 @@ func RegisterRoomRoutes(
 
 	g := r.Group("/rooms")
 	g.Use(middleware.AuthMiddleware(jwtManager))
-	{
-		g.GET("/list", roomHandler.ListRooms)
-		g.GET("/:roomId/slots/list", slotHandler.ListSlots)
+	g.GET("/list", roomHandler.ListRooms)
+	g.GET("/:roomId/slots/list", slotHandler.ListSlots)
 
-		admin := g.Group("")
-		admin.Use(middleware.RoleMiddleware("admin"))
-		{
-			admin.POST("/create", roomHandler.CreateRoom)
-			admin.POST("/:roomId/schedule/create", scheduleHandler.CreateSchedule)
-		}
-	}
+	admin := g.Group("")
+	admin.Use(middleware.RoleMiddleware("admin"))
+	admin.POST("/create", roomHandler.CreateRoom)
+	admin.POST("/:roomId/schedule/create", scheduleHandler.CreateSchedule)
 }

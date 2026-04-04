@@ -12,9 +12,7 @@ func RegisterUserRoutes(r *gin.RouterGroup, userService service.UserService, jwt
 
 	protected := r.Group("/users")
 	protected.Use(middleware.AuthMiddleware(jwtManager))
-	{
-		protected.GET("", userHandler.GetAllUsers)
-		protected.GET("/me", userHandler.GetCurrentUser)
-		protected.GET("/:id", userHandler.GetUserById)
-	}
+	protected.GET("", userHandler.GetAllUsers)
+	protected.GET("/me", userHandler.GetCurrentUser)
+	protected.GET("/:id", userHandler.GetUserById)
 }

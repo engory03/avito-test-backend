@@ -32,9 +32,9 @@ func (f *fakeRoomRepo) ExistsByID(uuid.UUID) (bool, error) {
 }
 
 func TestCreateRoom_InvalidCapacity(t *testing.T) {
-	cap := 0
+	capacity := 0
 	svc := NewRoomService(&fakeRoomRepo{})
-	_, err := svc.CreateRoom(dto.CreateRoomRequest{Name: "A", Capacity: &cap})
+	_, err := svc.CreateRoom(dto.CreateRoomRequest{Name: "A", Capacity: &capacity})
 	if err != ErrInvalidCapacity {
 		t.Fatalf("got %v", err)
 	}
@@ -42,7 +42,7 @@ func TestCreateRoom_InvalidCapacity(t *testing.T) {
 
 func TestCreateRoom_Success(t *testing.T) {
 	desc := "d"
-	cap := 5
+	capacity := 5
 	var saved *model.Room
 	repo := &fakeRoomRepo{
 		create: func(r *model.Room) error {
@@ -51,7 +51,7 @@ func TestCreateRoom_Success(t *testing.T) {
 		},
 	}
 	svc := NewRoomService(repo)
-	got, err := svc.CreateRoom(dto.CreateRoomRequest{Name: "Room", Description: &desc, Capacity: &cap})
+	got, err := svc.CreateRoom(dto.CreateRoomRequest{Name: "Room", Description: &desc, Capacity: &capacity})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -15,9 +15,9 @@ func TestRoomToJSON_Nil(t *testing.T) {
 }
 
 func TestRoomToJSON_OK(t *testing.T) {
-	cap := 4
+	capacity := 4
 	r := &model.Room{
-		ID: uuid.New(), Name: "N", Capacity: &cap,
+		ID: uuid.New(), Name: "N", Capacity: &capacity,
 		CreatedAt: time.Now().UTC(),
 	}
 	j := RoomToJSON(r)

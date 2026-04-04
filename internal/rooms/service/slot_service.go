@@ -100,8 +100,8 @@ func (s *slotService) ListAvailableSlots(roomID uuid.UUID, dateStr string) ([]mo
 	}
 
 	for i := range candidates {
-		if err := s.slotRepo.UpsertGeneratedSlot(&candidates[i]); err != nil {
-			return nil, err
+		if upErr := s.slotRepo.UpsertGeneratedSlot(&candidates[i]); upErr != nil {
+			return nil, upErr
 		}
 	}
 

@@ -78,5 +78,7 @@ func main() {
 	fmt.Printf("Dev server started at http://localhost:%s\n", port)
 	fmt.Printf("Swagger docs at http://localhost:%s/docs/index.html\n", port)
 
-	r.Run(":" + port)
+	if runErr := r.Run(":" + port); runErr != nil {
+		log.Fatalf("server: %v", runErr)
+	}
 }

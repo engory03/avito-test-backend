@@ -43,8 +43,8 @@ func (h *SlotHandler) ListSlots(c *gin.Context) {
 	}
 
 	var q dto.SlotListQuery
-	if err := c.ShouldBindQuery(&q); err != nil {
-		httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
+	if bindErr := c.ShouldBindQuery(&q); bindErr != nil {
+		httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", bindErr.Error())
 		return
 	}
 
