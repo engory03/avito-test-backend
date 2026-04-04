@@ -38,8 +38,27 @@ function Seed {
 
 function Test-Project {
     Write-Host "Running tests with gotestsum..." -ForegroundColor Cyan
-    gotestsum --format testname
+    gotestsum --format testname -- -count=1 -cover ./...
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
+function Test-Coverage {
+    $repoRoot = if ([string]::IsNullOrEmpty($PSScriptRoot)) { (Get-Location).Path } else { $PSScriptRoot }
+    $coverageOut = Join-Path $repoRoot "coverage.out"
+    Write-Host "Running tests with coverage profile ($coverageOut)..." -ForegroundColor Cyan
+    Push-Location $repoRoot
+    try {
+        # Space-separated flags: PowerShell can mishandle -flag=value for native go.exe (profile never written).
+        go test ./... -count=1 -cover -coverprofile $coverageOut -covermode atomic
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        Write-Host ""
+        Write-Host "Per-file summary (last line = total):" -ForegroundColor Cyan
+        go tool cover -func $coverageOut
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+    finally {
+        Pop-Location
+    }
 }
 
 function Swagger {
@@ -72,15 +91,16 @@ function Run {
 
 function Help {
     Write-Host "Available commands:" -ForegroundColor Yellow
-    Write-Host "  up       - Start project with dependencies (docker compose up -d --build)"
-    Write-Host "  down     - Stop Docker Compose stack"
-    Write-Host "  seed     - Fill DB via docker compose"
-    Write-Host "  dev      - Start Air hot reload (with Swagger hot reload)"
-    Write-Host "  build    - Build Go app into ./bin/app (Swagger updated first)"
-    Write-Host "  run      - Run Go app (no reload)"
-    Write-Host "  swag     - Generate Swagger docs"
-    Write-Host "  test     - Run tests with gotestsum"
-    Write-Host "  help     - Show this help"
+    Write-Host "  up             - Start project with dependencies (docker compose up -d --build)"
+    Write-Host "  down           - Stop Docker Compose stack"
+    Write-Host "  seed           - Fill DB via docker compose"
+    Write-Host "  dev            - Start Air hot reload (with Swagger hot reload)"
+    Write-Host "  build          - Build Go app into ./bin/app (Swagger updated first)"
+    Write-Host "  run            - Run Go app (no reload)"
+    Write-Host "  swag           - Generate Swagger docs"
+    Write-Host "  test           - Run tests with gotestsum (with per-package -cover)"
+    Write-Host "  test-coverage  - Full merged coverage profile -> coverage.out + go tool cover -func"
+    Write-Host "  help           - Show this help"
 }
 
 switch ($Command.ToLower()) {
@@ -91,8 +111,9 @@ switch ($Command.ToLower()) {
     "build" { Build }
     "run"   { Run }
     "swag"  { Swagger }
-    "test"  { Test-Project }
-    "help"  { Help }
+    "test"           { Test-Project }
+    "test-coverage"  { Test-Coverage }
+    "help"           { Help }
     default {
         Write-Host "Unknown command: $Command" -ForegroundColor Red
         Help
