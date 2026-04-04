@@ -2,6 +2,91 @@
 
 [![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/uvnTmvcw)
 
+Это репозиторий для выполнения тестового задания на стажировку в Авито.
+
+Инструкция - в [INSTRUCTIONS.md](INSTRUCTIONS.md).
+
+Подробное условие задания - в [TASK.md](TASK.md).
+
+Описание API — в [api.yaml](api.yaml).
+
+# Запуск
+
+Запустить сервис в Docker:
+
+```sh
+# linux
+make up
+
+# windows
+.\tasks.ps1 up
+
+# или просто
+docker compose up -d --build
+```
+
+Swagger API доступен по адресу: http://localhost:8080/docs/index.html
+
+Остановить сервис, запущенный в Docker:
+
+```sh
+# linux
+make down
+
+# windows
+.\tasks.ps1 down
+```
+
+Заполнить БД тестовыми данными (seed) в Docker:
+
+```sh
+# linux
+make seed
+
+# windows
+.\tasks.ps1 seed
+```
+
+Прогнать unit-тесты:
+
+```sh
+# linux
+make test
+
+# windows
+.\tasks.ps1 test
+```
+
+Прогнать unit-тесты cо статистикой покрытия:
+
+```sh
+# linux
+make test-coverage
+
+# windows
+.\tasks.ps1 test-coverage
+```
+
+Прогнать E2E-тесты с testcontainers:
+
+```sh
+# linux
+make test-e2e
+
+# windows
+.\tasks.ps1 test-e2e
+```
+
+Провести нагрузочное тестирование (load testing)
+
+```sh
+# linux
+make seed
+
+# windows
+.\tasks.ps1 seed
+```
+
 ## Conference Service (мок) и сбои при создании брони
 
 Для опционального поля `createConferenceLink: true` в `POST /bookings/create` используется **мок** внешнего сервиса (`internal/bookings/conference`), без реального HTTP.
