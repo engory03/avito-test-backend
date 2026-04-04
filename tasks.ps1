@@ -42,6 +42,24 @@ function Test-Project {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
+function Test-E2E {
+    $repoRoot = if ([string]::IsNullOrEmpty($PSScriptRoot)) { (Get-Location).Path } else { $PSScriptRoot }
+    $base = if ($env:E2E_BASE_URL) { $env:E2E_BASE_URL } else { "http://127.0.0.1:8080" }
+    Write-Host "Running E2E tests against $base ..." -ForegroundColor Cyan
+    $prevE2E = $env:E2E_BASE_URL
+    Push-Location $repoRoot
+    try {
+        $env:E2E_BASE_URL = $base
+        gotestsum --format testname -- -count=1 -v ./e2e/
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+    finally {
+        Pop-Location
+        if ([string]::IsNullOrEmpty($prevE2E)) { Remove-Item Env:E2E_BASE_URL -ErrorAction SilentlyContinue }
+        else { $env:E2E_BASE_URL = $prevE2E }
+    }
+}
+
 function Test-Coverage {
     $repoRoot = if ([string]::IsNullOrEmpty($PSScriptRoot)) { (Get-Location).Path } else { $PSScriptRoot }
     $coverageOut = Join-Path $repoRoot "coverage.out"
@@ -99,6 +117,7 @@ function Help {
     Write-Host "  run            - Run Go app (no reload)"
     Write-Host "  swag           - Generate Swagger docs"
     Write-Host "  test           - Run tests with gotestsum (with per-package -cover)"
+    Write-Host "  test-e2e       - HTTP E2E (E2E_BASE_URL or http://127.0.0.1:8080)"
     Write-Host "  test-coverage  - Full merged coverage profile -> coverage.out + go tool cover -func"
     Write-Host "  help           - Show this help"
 }
@@ -112,6 +131,7 @@ switch ($Command.ToLower()) {
     "run"   { Run }
     "swag"  { Swagger }
     "test"           { Test-Project }
+    "test-e2e"       { Test-E2E }
     "test-coverage"  { Test-Coverage }
     "help"           { Help }
     default {
