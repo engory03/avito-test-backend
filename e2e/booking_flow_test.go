@@ -51,6 +51,35 @@ func TestRoomScheduleBookingFlow(t *testing.T) {
 	}
 }
 
+func TestUserCancelBookingFlow(t *testing.T) {
+	base := baseURL(t)
+	client := &http.Client{Timeout: 30 * time.Second}
+	ctx := context.Background()
+
+	adminTok := dummyLogin(t, ctx, client, base, "admin")
+	userTok := dummyLogin(t, ctx, client, base, "user")
+
+	roomName := fmt.Sprintf("e2e-cancel-%d", time.Now().UnixNano())
+	roomID := createRoom(t, ctx, client, base, adminTok, roomName)
+	createSchedule(t, ctx, client, base, adminTok, roomID)
+
+	slotID := pickFutureSlotID(t, ctx, client, base, userTok, roomID)
+	booking := createBooking(t, ctx, client, base, userTok, slotID)
+
+	cancelled := cancelBooking(t, ctx, client, base, userTok, booking.ID)
+	if cancelled.Status != "cancelled" {
+		t.Fatalf("after cancel: status %q want cancelled", cancelled.Status)
+	}
+	if cancelled.ID != booking.ID || cancelled.SlotID != slotID {
+		t.Fatalf("cancel response: id/slotId mismatch (got id=%s slotId=%s)", cancelled.ID, cancelled.SlotID)
+	}
+
+	again := cancelBooking(t, ctx, client, base, userTok, booking.ID)
+	if again.Status != "cancelled" {
+		t.Fatalf("idempotent cancel: status %q want cancelled", again.Status)
+	}
+}
+
 // --- HTTP helpers ---
 
 type tokenResponse struct {
@@ -193,6 +222,17 @@ func createBooking(t *testing.T, ctx context.Context, client *http.Client, base,
 	status, raw := doJSON(t, ctx, client, http.MethodPost, base+"/api/bookings/create", userToken, reqBody, &out)
 	if status != http.StatusCreated {
 		t.Fatalf("create booking: status %d %s", status, apiErrDetail(raw))
+	}
+	return out.Booking
+}
+
+func cancelBooking(t *testing.T, ctx context.Context, client *http.Client, base, userToken string, bookingID uuid.UUID) bookingJSON {
+	t.Helper()
+	url := fmt.Sprintf("%s/api/bookings/%s/cancel", base, bookingID.String())
+	var out bookingEnvelope
+	status, raw := doJSON(t, ctx, client, http.MethodPost, url, userToken, nil, &out)
+	if status != http.StatusOK {
+		t.Fatalf("cancel booking: status %d %s", status, apiErrDetail(raw))
 	}
 	return out.Booking
 }
