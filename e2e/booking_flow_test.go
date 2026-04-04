@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -18,11 +17,10 @@ import (
 
 func baseURL(t *testing.T) string {
 	t.Helper()
-	u := strings.TrimSpace(os.Getenv("E2E_BASE_URL"))
-	if u == "" {
-		t.Skip("set E2E_BASE_URL (e.g. http://localhost:8080) to run E2E tests")
+	if testAPIBaseURL == "" {
+		t.Fatal("e2e: TestMain did not set testAPIBaseURL")
 	}
-	return strings.TrimRight(u, "/")
+	return testAPIBaseURL
 }
 
 func TestRoomScheduleBookingFlow(t *testing.T) {

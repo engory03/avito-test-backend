@@ -3,6 +3,9 @@
 # Prefer `docker compose` (V2); fall back to `docker-compose` (V1).
 DOCKER_COMPOSE ?= $(shell docker compose version >/dev/null 2>&1 && echo docker compose || echo docker-compose)
 
+# Packages for default test/coverage (exclude ./e2e — needs Docker; use test-e2e).
+TEST_PKGS ?= $(shell go list ./... | grep -v '/e2e$$')
+
 up:
 	@echo "Starting Docker Compose stack..."
 	$(DOCKER_COMPOSE) up -d --build
@@ -45,11 +48,11 @@ swag:
 
 test:
 	@echo "Running tests with gotestsum..."
-	gotestsum --format testname -- -count=1 -cover ./...
+	gotestsum --format testname -- -count=1 -cover $(TEST_PKGS)
 
 test-e2e:
-	@echo "E2E tests (requires stack on PORT, default 8080)..."
-	E2E_BASE_URL=http://127.0.0.1:8080 gotestsum --format testname -- -count=1 -v ./e2e/
+	@echo "E2E tests (Docker: testcontainers Postgres + in-process API; or set E2E_BASE_URL for an external server)..."
+	gotestsum --format testname -- -count=1 -v ./e2e/
 
 # Load test: k6 against GET .../slots/list (see loadtest/RESULTS.md). Requires `make seed` and running API.
 BASE_URL ?= http://127.0.0.1:8080
@@ -74,7 +77,7 @@ loadtest-docker:
 
 test-coverage:
 	@echo "Running tests with coverage profile (coverage.out)..."
-	go test ./... -count=1 -cover -coverprofile=coverage.out -covermode=atomic
+	go test $(TEST_PKGS) -count=1 -cover -coverprofile=coverage.out -covermode=atomic
 	@echo ""
 	@echo "Per-file summary (last line = total):"
 	@go tool cover -func=coverage.out
@@ -96,8 +99,8 @@ help:
 	@echo "  build          - Build Go app into ./bin/app (Swagger updated first)"
 	@echo "  run            - Run Go app (no reload)"
 	@echo "  swag           - Generate Swagger docs"
-	@echo "  test           - Run tests with gotestsum (with per-package -cover)"
-	@echo "  test-e2e       - HTTP E2E against E2E_BASE_URL (defaults to http://127.0.0.1:8080)"
+	@echo "  test           - Run tests with gotestsum (excludes ./e2e; use test-e2e for E2E)"
+	@echo "  test-e2e       - HTTP E2E (testcontainers Postgres by default; optional E2E_BASE_URL=... for external API)"
 	@echo "  loadtest       - k6 load test slots/list (BASE_URL, LOADTEST_RATE, LOADTEST_DURATION)"
 	@echo "  loadtest-smoke - Short k6 sanity run (LOADTEST_PROFILE=smoke)"
 	@echo "  loadtest-docker - Same as loadtest using grafana/k6 image"

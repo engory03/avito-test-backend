@@ -37,8 +37,9 @@ function Seed {
 }
 
 function Test-Project {
-    Write-Host "Running tests with gotestsum..." -ForegroundColor Cyan
-    gotestsum --format testname -- -count=1 -cover ./...
+    Write-Host "Running tests with gotestsum (excludes ./e2e; use test-e2e for E2E)..." -ForegroundColor Cyan
+    $pkgs = @(go list ./... | Where-Object { $_ -notmatch '/e2e$' })
+    gotestsum --format testname -- -count=1 -cover @pkgs
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
@@ -95,19 +96,18 @@ function LoadTest-Docker {
 
 function Test-E2E {
     $repoRoot = if ([string]::IsNullOrEmpty($PSScriptRoot)) { (Get-Location).Path } else { $PSScriptRoot }
-    $base = if ($env:E2E_BASE_URL) { $env:E2E_BASE_URL } else { "http://127.0.0.1:8080" }
-    Write-Host "Running E2E tests against $base ..." -ForegroundColor Cyan
-    $prevE2E = $env:E2E_BASE_URL
+    if ($env:E2E_BASE_URL) {
+        Write-Host "Running E2E tests against $($env:E2E_BASE_URL) ..." -ForegroundColor Cyan
+    } else {
+        Write-Host "Running E2E tests (testcontainers Postgres + in-process API; Docker required) ..." -ForegroundColor Cyan
+    }
     Push-Location $repoRoot
     try {
-        $env:E2E_BASE_URL = $base
         gotestsum --format testname -- -count=1 -v ./e2e/
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
     finally {
         Pop-Location
-        if ([string]::IsNullOrEmpty($prevE2E)) { Remove-Item Env:E2E_BASE_URL -ErrorAction SilentlyContinue }
-        else { $env:E2E_BASE_URL = $prevE2E }
     }
 }
 
@@ -117,8 +117,9 @@ function Test-Coverage {
     Write-Host "Running tests with coverage profile ($coverageOut)..." -ForegroundColor Cyan
     Push-Location $repoRoot
     try {
+        $pkgs = @(go list ./... | Where-Object { $_ -notmatch '/e2e$' })
         # Space-separated flags: PowerShell can mishandle -flag=value for native go.exe (profile never written).
-        go test ./... -count=1 -cover -coverprofile $coverageOut -covermode atomic
+        go test @pkgs -count=1 -cover -coverprofile $coverageOut -covermode atomic
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         Write-Host ""
         Write-Host "Per-file summary (last line = total):" -ForegroundColor Cyan
@@ -201,8 +202,8 @@ function Help {
     Write-Host "  build          - Build Go app into ./bin/app (Swagger updated first)"
     Write-Host "  run            - Run Go app (no reload)"
     Write-Host "  swag           - Generate Swagger docs"
-    Write-Host "  test           - Run tests with gotestsum (with per-package -cover)"
-    Write-Host "  test-e2e       - HTTP E2E (E2E_BASE_URL or http://127.0.0.1:8080)"
+    Write-Host "  test           - Run tests with gotestsum (excludes ./e2e; use test-e2e for E2E)"
+    Write-Host "  test-e2e       - HTTP E2E (testcontainers by default; optional E2E_BASE_URL for external API)"
     Write-Host "  loadtest       - k6 load test (BASE_URL, LOADTEST_RATE, LOADTEST_DURATION)"
     Write-Host "  loadtest-smoke - Short k6 sanity run"
     Write-Host "  loadtest-docker - k6 via Docker + volume mount"

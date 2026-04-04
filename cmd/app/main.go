@@ -3,42 +3,13 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-
-	authHttp "github.com/internships-backend/test-backend-engory03/internal/auth/http"
-	authModel "github.com/internships-backend/test-backend-engory03/internal/auth/model"
-	authRepo "github.com/internships-backend/test-backend-engory03/internal/auth/repository"
-	authService "github.com/internships-backend/test-backend-engory03/internal/auth/service"
-
-	roomsHttp "github.com/internships-backend/test-backend-engory03/internal/rooms/http"
-	roomsModel "github.com/internships-backend/test-backend-engory03/internal/rooms/model"
-	roomsRepo "github.com/internships-backend/test-backend-engory03/internal/rooms/repository"
-	roomsService "github.com/internships-backend/test-backend-engory03/internal/rooms/service"
-
-	usersHttp "github.com/internships-backend/test-backend-engory03/internal/users/http"
-	usersModel "github.com/internships-backend/test-backend-engory03/internal/users/model"
-	usersRepo "github.com/internships-backend/test-backend-engory03/internal/users/repository"
-	usersService "github.com/internships-backend/test-backend-engory03/internal/users/service"
-
-	bookingsConference "github.com/internships-backend/test-backend-engory03/internal/bookings/conference"
-	bookingsHttp "github.com/internships-backend/test-backend-engory03/internal/bookings/http"
-	bookingsModel "github.com/internships-backend/test-backend-engory03/internal/bookings/model"
-	bookingsRepo "github.com/internships-backend/test-backend-engory03/internal/bookings/repository"
-	bookingsService "github.com/internships-backend/test-backend-engory03/internal/bookings/service"
-
+	"github.com/internships-backend/test-backend-engory03/internal/app"
 	"github.com/internships-backend/test-backend-engory03/internal/shared/config"
 	"github.com/internships-backend/test-backend-engory03/internal/shared/utils"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
-
-	_ "github.com/internships-backend/test-backend-engory03/docs"
 )
 
 // @title Room Booking Service (Test Task)
@@ -91,72 +62,18 @@ func main() {
 		log.Fatalf("Failed to connect database: %v", err)
 	}
 
-	// Run AutoMigrate
-	if err := db.AutoMigrate(
-		&usersModel.User{},
-		&authModel.RefreshToken{},
-		&roomsModel.Room{},
-		&roomsModel.Schedule{},
-		&roomsModel.Slot{},
-		&bookingsModel.Booking{},
-	); err != nil {
+	if err := app.MigrateDB(db); err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 
 	fmt.Println("Database migrated successfully")
 
-	// Initialize router and services
-	r := gin.Default()
-
-	// Enable CORS
-	r.Use(cors.New(cors.Config{
-		AllowOriginFunc:  func(origin string) bool { return true },
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
-		AllowCredentials: true,
-		MaxAge:           12 * 60 * 60,
-	}))
-
-	jwtManager := utils.NewJWTManager(jwtAccessSecret, jwtRefreshSecret)
-	jwtManager.AccessTokenTTL = accessExp
-	jwtManager.RefreshTokenTTL = refreshExp
-
-	userRepo := usersRepo.NewUserRepository(db)
-	userService := usersService.NewUserService(userRepo)
-
-	refreshTokenRepo := authRepo.NewRefreshTokenRepository(db)
-	authService := authService.NewAuthService(userRepo, refreshTokenRepo, jwtManager)
-
-	roomRepo := roomsRepo.NewRoomRepository(db)
-	roomService := roomsService.NewRoomService(roomRepo)
-
-	scheduleRepo := roomsRepo.NewScheduleRepository(db)
-	scheduleService := roomsService.NewScheduleService(roomRepo, scheduleRepo)
-
-	slotRepo := roomsRepo.NewSlotRepository(db)
-	slotService := roomsService.NewSlotService(roomRepo, scheduleRepo, slotRepo)
-
-	bookingRepo := bookingsRepo.NewBookingRepository(db)
-	conferenceClient := bookingsConference.NewMockClientFromEnv()
-	bookingService := bookingsService.NewBookingService(bookingRepo, conferenceClient)
-
-	api := r.Group("/api")
-	{
-		authHttp.RegisterAuthRoutes(api, authService)
-		usersHttp.RegisterUserRoutes(api, userService, jwtManager)
-		bookingsHttp.RegisterBookingRoutes(api, bookingService, jwtManager)
-		roomsHttp.RegisterRoomRoutes(api, roomService, scheduleService, slotService, jwtManager)
-	}
-
-	r.GET("/_info", func(c *gin.Context) {
-		c.Status(http.StatusOK)
+	r := app.NewEngine(db, app.EngineConfig{
+		JWTAccessSecret:   jwtAccessSecret,
+		JWTRefreshSecret:  jwtRefreshSecret,
+		AccessExpiration:  accessExp,
+		RefreshExpiration: refreshExp,
 	})
-
-	// Swagger docs
-	r.GET("/docs/*any", ginSwagger.WrapHandler(
-		swaggerFiles.Handler,
-		ginSwagger.PersistAuthorization(true),
-	))
 
 	fmt.Printf("Dev server started at http://localhost:%s\n", port)
 	fmt.Printf("Swagger docs at http://localhost:%s/docs/index.html\n", port)
