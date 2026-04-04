@@ -1,0 +1,43 @@
+version: '2'
+
+linters:
+  default: none
+  enable:
+    - errcheck # непроверенные ошибки
+    - gosimple # упрощение кода
+    - govet # подозрительные конструкции
+    - ineffassign # бесполезные присваивания
+    - staticcheck # статический анализ
+    - unused # неиспользуемый код
+    - gofmt # форматирование
+    - goimports # порядок импортов
+    - gocritic # дополнительные проверки стиля
+    - noctx # http-запросы без context
+    - bodyclose # незакрытые response.Body
+    - exhaustive # неполные switch по enum
+
+linters-settings:
+  govet:
+    enable:
+      - shadow # переменные, перекрывающие внешние
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+
+  exhaustive:
+    default-signifies-exhaustive: true
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck # в тестах ошибки часто намеренно игнорируют
+
+    - path: cmd/seed/main\.go
+      linters:
+        - exhaustive # seed — не продакшн код
+
+  max-issues-per-linter: 50
+  max-same-issues: 5

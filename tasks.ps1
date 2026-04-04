@@ -130,6 +130,40 @@ function Test-Coverage {
     }
 }
 
+function Lint {
+    if (-not (Get-Command golangci-lint -ErrorAction SilentlyContinue)) {
+        Write-Host "Install golangci-lint: https://golangci-lint.run/welcome/install/" -ForegroundColor Red
+        exit 1
+    }
+    $repoRoot = if ([string]::IsNullOrEmpty($PSScriptRoot)) { (Get-Location).Path } else { $PSScriptRoot }
+    Write-Host "Running linter..." -ForegroundColor Cyan
+    Push-Location $repoRoot
+    try {
+        golangci-lint run ./...
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+function Lint-Fix {
+    if (-not (Get-Command golangci-lint -ErrorAction SilentlyContinue)) {
+        Write-Host "Install golangci-lint: https://golangci-lint.run/welcome/install/" -ForegroundColor Red
+        exit 1
+    }
+    $repoRoot = if ([string]::IsNullOrEmpty($PSScriptRoot)) { (Get-Location).Path } else { $PSScriptRoot }
+    Write-Host "Running linter with autofix..." -ForegroundColor Cyan
+    Push-Location $repoRoot
+    try {
+        golangci-lint run --fix ./...
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+    finally {
+        Pop-Location
+    }
+}
+
 function Swagger {
     Write-Host "Generating Swagger docs..." -ForegroundColor Cyan
     swag init --parseDependency --parseInternal -g ./cmd/app/main.go
@@ -173,6 +207,8 @@ function Help {
     Write-Host "  loadtest-smoke - Short k6 sanity run"
     Write-Host "  loadtest-docker - k6 via Docker + volume mount"
     Write-Host "  test-coverage  - Full merged coverage profile -> coverage.out + go tool cover -func"
+    Write-Host "  lint           - Run golangci-lint (see .golangci.yaml)"
+    Write-Host "  lint-fix       - Run golangci-lint with --fix"
     Write-Host "  help           - Show this help"
 }
 
@@ -190,7 +226,9 @@ switch ($Command.ToLower()) {
     "loadtest-smoke"  { LoadTest-Smoke }
     "loadtest-docker" { LoadTest-Docker }
     "test-coverage"   { Test-Coverage }
-    "help"           { Help }
+    "lint"            { Lint }
+    "lint-fix"        { Lint-Fix }
+    "help"            { Help }
     default {
         Write-Host "Unknown command: $Command" -ForegroundColor Red
         Help

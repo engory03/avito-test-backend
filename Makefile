@@ -79,6 +79,14 @@ test-coverage:
 	@echo "Per-file summary (last line = total):"
 	@go tool cover -func=coverage.out
 
+lint:
+	@echo "Running linter..."
+	golangci-lint run ./...
+
+lint-fix:
+	@echo "Running linter with autofix..."
+	golangci-lint run --fix ./...
+
 help:
 	@echo "Available commands:"
 	@echo "  up             - Start project with dependencies (docker compose up -d --build)"
@@ -94,4 +102,6 @@ help:
 	@echo "  loadtest-smoke - Short k6 sanity run (LOADTEST_PROFILE=smoke)"
 	@echo "  loadtest-docker - Same as loadtest using grafana/k6 image"
 	@echo "  test-coverage  - Full merged coverage profile -> coverage.out + go tool cover -func"
+	@echo "  lint           - Run linter"
+	@echo "  lint-fix       - Run linter with autofix"
 	@echo "  help           - Show this help"
