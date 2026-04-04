@@ -42,6 +42,57 @@ function Test-Project {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
+function LoadTest {
+    if (-not (Get-Command k6 -ErrorAction SilentlyContinue)) {
+        Write-Host "Install k6: https://grafana.com/docs/k6/latest/set-up/install-k6/" -ForegroundColor Red
+        exit 1
+    }
+    $repoRoot = if ([string]::IsNullOrEmpty($PSScriptRoot)) { (Get-Location).Path } else { $PSScriptRoot }
+    $base = if ($env:BASE_URL) { $env:BASE_URL } else { "http://127.0.0.1:8080" }
+    $rate = if ($env:LOADTEST_RATE) { $env:LOADTEST_RATE } else { "50" }
+    $dur = if ($env:LOADTEST_DURATION) { $env:LOADTEST_DURATION } else { "90s" }
+    Write-Host "k6 slots/list load test: BASE_URL=$base RATE=$rate DURATION=$dur" -ForegroundColor Cyan
+    Push-Location $repoRoot
+    try {
+        k6 run loadtest/k6/slots_list.js -e "BASE_URL=$base" -e "LOADTEST_RATE=$rate" -e "LOADTEST_DURATION=$dur"
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+function LoadTest-Smoke {
+    if (-not (Get-Command k6 -ErrorAction SilentlyContinue)) {
+        Write-Host "Install k6: https://grafana.com/docs/k6/latest/set-up/install-k6/" -ForegroundColor Red
+        exit 1
+    }
+    $repoRoot = if ([string]::IsNullOrEmpty($PSScriptRoot)) { (Get-Location).Path } else { $PSScriptRoot }
+    $base = if ($env:BASE_URL) { $env:BASE_URL } else { "http://127.0.0.1:8080" }
+    Push-Location $repoRoot
+    try {
+        k6 run loadtest/k6/slots_list.js -e "BASE_URL=$base" -e "LOADTEST_PROFILE=smoke"
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+function LoadTest-Docker {
+    $repoRoot = if ([string]::IsNullOrEmpty($PSScriptRoot)) { (Get-Location).Path } else { $PSScriptRoot }
+    $rate = if ($env:LOADTEST_RATE) { $env:LOADTEST_RATE } else { "50" }
+    $dur = if ($env:LOADTEST_DURATION) { $env:LOADTEST_DURATION } else { "90s" }
+    Write-Host "k6 (Docker) against host.docker.internal:8080 ..." -ForegroundColor Cyan
+    docker run --rm --add-host=host.docker.internal:host-gateway `
+        -v "${repoRoot}:/t" -w /t `
+        -e BASE_URL=http://host.docker.internal:8080 `
+        -e LOADTEST_RATE=$rate `
+        -e LOADTEST_DURATION=$dur `
+        grafana/k6:0.57.0 run loadtest/k6/slots_list.js
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
 function Test-E2E {
     $repoRoot = if ([string]::IsNullOrEmpty($PSScriptRoot)) { (Get-Location).Path } else { $PSScriptRoot }
     $base = if ($env:E2E_BASE_URL) { $env:E2E_BASE_URL } else { "http://127.0.0.1:8080" }
@@ -118,6 +169,9 @@ function Help {
     Write-Host "  swag           - Generate Swagger docs"
     Write-Host "  test           - Run tests with gotestsum (with per-package -cover)"
     Write-Host "  test-e2e       - HTTP E2E (E2E_BASE_URL or http://127.0.0.1:8080)"
+    Write-Host "  loadtest       - k6 load test (BASE_URL, LOADTEST_RATE, LOADTEST_DURATION)"
+    Write-Host "  loadtest-smoke - Short k6 sanity run"
+    Write-Host "  loadtest-docker - k6 via Docker + volume mount"
     Write-Host "  test-coverage  - Full merged coverage profile -> coverage.out + go tool cover -func"
     Write-Host "  help           - Show this help"
 }
@@ -131,8 +185,11 @@ switch ($Command.ToLower()) {
     "run"   { Run }
     "swag"  { Swagger }
     "test"           { Test-Project }
-    "test-e2e"       { Test-E2E }
-    "test-coverage"  { Test-Coverage }
+    "test-e2e"        { Test-E2E }
+    "loadtest"        { LoadTest }
+    "loadtest-smoke"  { LoadTest-Smoke }
+    "loadtest-docker" { LoadTest-Docker }
+    "test-coverage"   { Test-Coverage }
     "help"           { Help }
     default {
         Write-Host "Unknown command: $Command" -ForegroundColor Red
