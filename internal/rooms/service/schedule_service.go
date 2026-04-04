@@ -7,6 +7,7 @@ import (
 	"github.com/internships-backend/test-backend-engory03/internal/rooms/dto"
 	"github.com/internships-backend/test-backend-engory03/internal/rooms/model"
 	"github.com/internships-backend/test-backend-engory03/internal/rooms/repository"
+	"github.com/lib/pq"
 )
 
 var (
@@ -52,10 +53,14 @@ func (s *scheduleService) CreateSchedule(pathRoomID uuid.UUID, req dto.ScheduleC
 		return nil, ErrScheduleExists
 	}
 	days := append([]int(nil), req.DaysOfWeek...)
+	daysPQ := make(pq.Int64Array, len(days))
+	for i, d := range days {
+		daysPQ[i] = int64(d)
+	}
 	sched := &model.Schedule{
 		ID:         uuid.New(),
 		RoomID:     pathRoomID,
-		DaysOfWeek: days,
+		DaysOfWeek: daysPQ,
 		StartTime:  req.StartTime,
 		EndTime:    req.EndTime,
 	}

@@ -9,10 +9,14 @@ func ScheduleToJSON(s *model.Schedule) *dto.ScheduleJSON {
 	if s == nil {
 		return nil
 	}
+	days := make([]int, len(s.DaysOfWeek))
+	for i, d := range s.DaysOfWeek {
+		days[i] = int(d)
+	}
 	return &dto.ScheduleJSON{
 		ID:         s.ID,
 		RoomID:     s.RoomID,
-		DaysOfWeek: s.DaysOfWeek,
+		DaysOfWeek: days,
 		StartTime:  s.StartTime,
 		EndTime:    s.EndTime,
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/internships-backend/test-backend-engory03/internal/rooms/model"
 	"github.com/internships-backend/test-backend-engory03/internal/rooms/repository"
+	"github.com/lib/pq"
 )
 
 var ErrInvalidSlotListDate = errors.New("invalid date parameter")
@@ -64,7 +65,7 @@ func (s *slotService) ListAvailableSlots(roomID uuid.UUID, dateStr string) ([]mo
 		return nil, nil
 	}
 
-	if !containsInt(sched.DaysOfWeek, apiWeekday(dayUTC)) {
+	if !weekdayInSchedule(sched.DaysOfWeek, apiWeekday(dayUTC)) {
 		return nil, nil
 	}
 
@@ -130,9 +131,9 @@ func apiWeekday(t time.Time) int {
 	return int(wd)
 }
 
-func containsInt(xs []int, v int) bool {
+func weekdayInSchedule(xs pq.Int64Array, v int) bool {
 	for _, x := range xs {
-		if x == v {
+		if int(x) == v {
 			return true
 		}
 	}

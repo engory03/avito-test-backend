@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────
-# Stage 1: Build Go binary
+# Stage 1: Build Go binaries
 # ─────────────────────────────────────────────
 FROM golang:1.25.4-alpine AS builder
 
@@ -19,6 +19,9 @@ RUN go install github.com/swaggo/swag/cmd/swag@latest && \
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-s -w" -o /app/server ./cmd/app
 
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -ldflags="-s -w" -o /app/seeder ./cmd/seed
+
 # ─────────────────────────────────────────────
 # Stage 2: Final image
 # ─────────────────────────────────────────────
@@ -29,6 +32,7 @@ RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 
 COPY --from=builder /app/server .
+COPY --from=builder /app/seeder .
 COPY --from=builder /app/docs ./docs
 
 EXPOSE 8080

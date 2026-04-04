@@ -9,7 +9,6 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
-	authDummy "github.com/internships-backend/test-backend-engory03/internal/auth/dummy"
 	authHttp "github.com/internships-backend/test-backend-engory03/internal/auth/http"
 	authModel "github.com/internships-backend/test-backend-engory03/internal/auth/model"
 	authRepo "github.com/internships-backend/test-backend-engory03/internal/auth/repository"
@@ -104,10 +103,6 @@ func main() {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 
-	if err := authDummy.EnsureUsersInDB(db); err != nil {
-		log.Fatalf("Failed to ensure dummy users: %v", err)
-	}
-
 	fmt.Println("Database migrated successfully")
 
 	// Initialize router and services
@@ -144,12 +139,6 @@ func main() {
 	bookingRepo := bookingsRepo.NewBookingRepository(db)
 	conferenceClient := bookingsConference.NewMockClientFromEnv()
 	bookingService := bookingsService.NewBookingService(bookingRepo, conferenceClient)
-
-	// Run seeds
-	// if err := seed.RunSeeds(db); err != nil {
-	// 	log.Fatalf("Failed to seed: %v", err)
-	// 	panic(err)
-	// }
 
 	api := r.Group("/api")
 	{

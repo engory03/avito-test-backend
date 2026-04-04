@@ -12,8 +12,8 @@ down:
 	$(DOCKER_COMPOSE) down
 
 seed:
-	@echo "Seeding database (expects Postgres reachable per .env, e.g. after make up)..."
-	go run ./cmd/seed
+	@echo "Seeding database..."
+	$(DOCKER_COMPOSE) exec app ./seeder
 
 dev:
 	@echo "Generating Swagger docs..."
@@ -51,7 +51,7 @@ help:
 	@echo "Available commands:"
 	@echo "  up     - Start project with dependencies (docker compose up -d --build)"
 	@echo "  down   - Stop Docker Compose stack"
-	@echo "  seed   - Fill DB with test data (go run ./cmd/seed; use .env, DB_HOST=localhost after make up)"
+	@echo "  seed   - Fill DB via docker compose"
 	@echo "  dev    - Start Air hot reload (with Swagger hot reload)"
 	@echo "  build  - Build Go app into ./bin/app (Swagger updated first)"
 	@echo "  run    - Run Go app (no reload)"

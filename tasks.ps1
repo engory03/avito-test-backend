@@ -30,9 +30,10 @@ function Down {
 }
 
 function Seed {
-    Write-Host "Seeding database (expects Postgres reachable per .env, e.g. after up)..." -ForegroundColor Cyan
-    go run ./cmd/seed
+    Write-Host "Seeding database..." -ForegroundColor Cyan
+    Invoke-DockerCompose exec app ./seeder
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    Write-Host "Database seeded" -ForegroundColor Green
 }
 
 function Test-Project {
@@ -73,7 +74,7 @@ function Help {
     Write-Host "Available commands:" -ForegroundColor Yellow
     Write-Host "  up       - Start project with dependencies (docker compose up -d --build)"
     Write-Host "  down     - Stop Docker Compose stack"
-    Write-Host "  seed     - Fill DB with test data (go run ./cmd/seed; DB_HOST=localhost after up)"
+    Write-Host "  seed     - Fill DB via docker compose"
     Write-Host "  dev      - Start Air hot reload (with Swagger hot reload)"
     Write-Host "  build    - Build Go app into ./bin/app (Swagger updated first)"
     Write-Host "  run      - Run Go app (no reload)"
