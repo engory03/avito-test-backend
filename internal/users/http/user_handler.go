@@ -22,14 +22,14 @@ func NewUserHandler(s service.UserService) *UserHandler {
 }
 
 // GetCurrentUser godoc
-// @Summary Get current user
-// @Description Returns the authenticated user
+// @Summary Получить текущего пользователя (для удобной проверки)
+// @Description Возвращает аутентифицированного пользователя
 // @Tags Users
 // @Security BearerAuth
 // @Produce json
-// @Success 200 {object} dto.UserResponse
-// @Failure 400 {object} shareddto.ErrorDefaultResponse
-// @Failure 404 {object} shareddto.ErrorDefaultResponse
+// @Success 200 {object} dto.UserResponse "Информация о текущем пользователе"
+// @Failure 400 {object} shareddto.ErrorDefaultResponse "Некорректный запрос"
+// @Failure 404 {object} shareddto.ErrorDefaultResponse "Пользователь не найден"
 // @Router /users/me [get]
 func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 	userID, exists := c.Get("user_id")
@@ -56,14 +56,14 @@ func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 }
 
 // GetUserById godoc
-// @Summary Get user by ID
+// @Summary Получить пользователя по ID (для удобной проверки)
 // @Tags Users
 // @Security BearerAuth
 // @Produce json
-// @Param id path string true "User ID (uuid)"
-// @Success 200 {object} dto.UserResponse
-// @Failure 400 {object} shareddto.ErrorDefaultResponse
-// @Failure 404 {object} shareddto.ErrorDefaultResponse
+// @Param id path string true "ID пользователя (uuid)"
+// @Success 200 {object} dto.UserResponse "Информация о пользователе"
+// @Failure 400 {object} shareddto.ErrorDefaultResponse "Некорректный запрос"
+// @Failure 404 {object} shareddto.ErrorDefaultResponse "Пользователь не найден"
 // @Router /users/{id} [get]
 func (h *UserHandler) GetUserById(c *gin.Context) {
 	idStr := c.Param("id")
@@ -85,11 +85,13 @@ func (h *UserHandler) GetUserById(c *gin.Context) {
 }
 
 // GetAllUsers godoc
-// @Summary Get all users
+// @Summary Получить всех пользователей (для удобной проверки)
+// @Description Возвращает всех пользователей
 // @Tags Users
 // @Security BearerAuth
 // @Produce json
-// @Success 200 {array} dto.UserResponse
+// @Success 200 {array} dto.UserResponse "Список всех пользователей"
+// @Failure 500 {object} shareddto.ErrorDefaultResponse "Внутренняя ошибка сервера"
 // @Router /users [get]
 func (h *UserHandler) GetAllUsers(c *gin.Context) {
 	users, err := h.service.GetAllUsers()
