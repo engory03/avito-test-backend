@@ -59,7 +59,7 @@ make seed
 .\tasks.ps1 seed
 ```
 
-Прогнать unit-тесты:
+Прогнать unit-тесты cо статистикой покрытия:
 
 ```sh
 # linux
@@ -69,14 +69,14 @@ make test
 .\tasks.ps1 test
 ```
 
-Прогнать unit-тесты cо статистикой покрытия:
+Прогнать integration-тесты cо статистикой покрытия:
 
 ```sh
 # linux
-make test-coverage
+make test-integration
 
 # windows
-.\tasks.ps1 test-coverage
+.\tasks.ps1 test-integration
 ```
 
 Прогнать E2E-тесты с testcontainers для тестовой БД PostgreSQL:
