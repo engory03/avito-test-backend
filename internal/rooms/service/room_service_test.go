@@ -41,6 +41,20 @@ func TestCreateRoom_InvalidCapacity(t *testing.T) {
 	}
 }
 
+func TestCreateRoom_NilCapacity_OK(t *testing.T) {
+	var saved *model.Room
+	svc := NewRoomService(&fakeRoomRepo{
+		create: func(_ context.Context, r *model.Room) error {
+			saved = r
+			return nil
+		},
+	})
+	got, err := svc.CreateRoom(context.Background(), dto.CreateRoomRequest{Name: "NoCap"})
+	if err != nil || saved == nil || saved.Capacity != nil {
+		t.Fatalf("got %+v saved %+v err %v", got, saved, err)
+	}
+}
+
 func TestCreateRoom_Success(t *testing.T) {
 	desc := "d"
 	capacity := 5

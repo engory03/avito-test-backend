@@ -1,4 +1,4 @@
-.PHONY: dev build run swag test test-e2e test-coverage loadtest loadtest-smoke loadtest-docker up seed seed-local down help
+.PHONY: dev build run swag test test-integration test-e2e loadtest loadtest-smoke loadtest-docker up seed seed-local down help
 
 # Prefer `docker compose` (V2); fall back to `docker-compose` (V1).
 DOCKER_COMPOSE ?= $(shell docker compose version >/dev/null 2>&1 && echo docker compose || echo docker-compose)
@@ -52,8 +52,19 @@ swag:
 	@echo "Swagger docs generated"
 
 test:
-	@echo "Running tests with gotestsum..."
-	gotestsum --format testname -- -count=1 -cover $(TEST_PKGS)
+	@echo "Running tests with gotestsum (coverage -> coverage.out)..."
+	gotestsum --format testname -- -count=1 -cover -coverprofile=coverage.out -covermode=atomic $(TEST_PKGS)
+	@echo ""
+	@echo "Per-file summary (coverage.out):"
+	@go tool cover -func=coverage.out
+
+# Integration tests (testcontainers Postgres; requires Docker).
+test-integration:
+	@echo "Running integration-tagged tests (Docker required)..."
+	gotestsum --format testname -- -count=1 -tags=integration -cover -coverprofile=coverage-integration.out -covermode=atomic $(TEST_PKGS)
+	@echo ""
+	@echo "Per-file summary (integration, coverage-integration.out):"
+	@go tool cover -func=coverage-integration.out
 
 test-e2e:
 	@echo "E2E tests (Docker: testcontainers Postgres + in-process API; or set E2E_BASE_URL for an external server)..."
@@ -80,13 +91,6 @@ loadtest-docker:
 		-e LOADTEST_DURATION=$(LOADTEST_DURATION) \
 		grafana/k6:0.57.0 run - < loadtest/k6/slots_list.js
 
-test-coverage:
-	@echo "Running tests with coverage profile (coverage.out)..."
-	go test $(TEST_PKGS) -count=1 -cover -coverprofile=coverage.out -covermode=atomic
-	@echo ""
-	@echo "Per-file summary (last line = total):"
-	@go tool cover -func=coverage.out
-
 lint:
 	@echo "Running linter..."
 	golangci-lint run ./...
@@ -105,12 +109,12 @@ help:
 	@echo "  build          - Build Go app into ./bin/app (Swagger updated first)"
 	@echo "  run            - Run Go app (no reload)"
 	@echo "  swag           - Generate Swagger docs"
-	@echo "  test           - Run tests with gotestsum (excludes ./e2e; use test-e2e for E2E)"
+	@echo "  test           - Tests with gotestsum + coverage -> coverage.out + go tool cover -func"
+	@echo "  test-integration - Integration tests (-tags=integration) + coverage -> coverage-integration.out"
 	@echo "  test-e2e       - HTTP E2E (testcontainers Postgres by default; optional E2E_BASE_URL=... for external API)"
 	@echo "  loadtest       - k6 load test slots/list (BASE_URL, LOADTEST_RATE, LOADTEST_DURATION)"
 	@echo "  loadtest-smoke - Short k6 sanity run (LOADTEST_PROFILE=smoke)"
 	@echo "  loadtest-docker - Same as loadtest using grafana/k6 image"
-	@echo "  test-coverage  - Full merged coverage profile -> coverage.out + go tool cover -func"
 	@echo "  lint           - Run linter"
 	@echo "  lint-fix       - Run linter with autofix"
 	@echo "  help           - Show this help"

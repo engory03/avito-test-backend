@@ -85,6 +85,39 @@ func TestGetUserById_NotFound(t *testing.T) {
 	}
 }
 
+func TestGetUserById_Success(t *testing.T) {
+	id := uuid.New()
+	want := &model.User{ID: id, Email: "a@b.c", Role: "user"}
+	svc := NewUserService(&fakeUsersRepo{
+		byID: func(_ context.Context, got uuid.UUID) (*model.User, error) {
+			if got != id {
+				t.Fatalf("id %v", got)
+			}
+			return want, nil
+		},
+	})
+	u, err := svc.GetUserById(context.Background(), id)
+	if err != nil || u.Email != want.Email {
+		t.Fatalf("got %+v err %v", u, err)
+	}
+}
+
+func TestGetByEmail_Delegates(t *testing.T) {
+	want := &model.User{ID: uuid.New(), Email: "x@y.z"}
+	svc := NewUserService(&fakeUsersRepo{
+		byEmail: func(_ context.Context, email string) (*model.User, error) {
+			if email != "x@y.z" {
+				t.Fatal(email)
+			}
+			return want, nil
+		},
+	})
+	u, err := svc.GetByEmail(context.Background(), "x@y.z")
+	if err != nil || u.ID != want.ID {
+		t.Fatalf("got %+v err %v", u, err)
+	}
+}
+
 func TestGetAllUsers(t *testing.T) {
 	want := []*model.User{{ID: uuid.New(), Email: "e"}}
 	svc := NewUserService(&fakeUsersRepo{

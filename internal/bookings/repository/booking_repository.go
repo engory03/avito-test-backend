@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -46,11 +47,14 @@ func NewBookingRepository(db *gorm.DB) BookingRepository {
 }
 
 func isPostgresUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
 	var pqErr *pq.Error
 	if errors.As(err, &pqErr) {
 		return pqErr.Code == "23505"
 	}
-	return false
+	return strings.Contains(err.Error(), "23505")
 }
 
 func (r *bookingRepository) ListByUserWithFutureSlots(ctx context.Context, userID uuid.UUID, nowUTC time.Time) ([]*model.Booking, error) {

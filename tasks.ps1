@@ -51,10 +51,43 @@ function Seed-Local {
 }
 
 function Test-Project {
+    $repoRoot = if ([string]::IsNullOrEmpty($PSScriptRoot)) { (Get-Location).Path } else { $PSScriptRoot }
+    $coverageOut = Join-Path $repoRoot "coverage.out"
     Write-Host "Running tests with gotestsum (excludes ./e2e; use test-e2e for E2E)..." -ForegroundColor Cyan
-    $pkgs = @(go list ./... | Where-Object { $_ -notmatch '/e2e$' })
-    gotestsum --format testname -- -count=1 -cover @pkgs
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    Write-Host "Coverage profile: $coverageOut" -ForegroundColor DarkGray
+    Push-Location $repoRoot
+    try {
+        $pkgs = @(go list ./... | Where-Object { $_ -notmatch '/e2e$' })
+        gotestsum --format testname -- -count=1 -cover -coverprofile $coverageOut -covermode atomic @pkgs
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        Write-Host ""
+        Write-Host "Per-file summary (coverage.out):" -ForegroundColor Cyan
+        go tool cover -func $coverageOut
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+function Test-Integration {
+    $repoRoot = if ([string]::IsNullOrEmpty($PSScriptRoot)) { (Get-Location).Path } else { $PSScriptRoot }
+    $coverageOut = Join-Path $repoRoot "coverage-integration.out"
+    Write-Host "Running integration-tagged tests with coverage (Docker / testcontainers required)..." -ForegroundColor Cyan
+    Write-Host "Coverage profile: $coverageOut" -ForegroundColor DarkGray
+    Push-Location $repoRoot
+    try {
+        $pkgs = @(go list ./... | Where-Object { $_ -notmatch '/e2e$' })
+        gotestsum --format testname -- -count=1 -tags=integration -cover -coverprofile $coverageOut -covermode atomic @pkgs
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        Write-Host ""
+        Write-Host "Per-file summary (integration):" -ForegroundColor Cyan
+        go tool cover -func $coverageOut
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+    finally {
+        Pop-Location
+    }
 }
 
 function LoadTest {
@@ -118,26 +151,6 @@ function Test-E2E {
     Push-Location $repoRoot
     try {
         gotestsum --format testname -- -count=1 -v ./e2e/
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    }
-    finally {
-        Pop-Location
-    }
-}
-
-function Test-Coverage {
-    $repoRoot = if ([string]::IsNullOrEmpty($PSScriptRoot)) { (Get-Location).Path } else { $PSScriptRoot }
-    $coverageOut = Join-Path $repoRoot "coverage.out"
-    Write-Host "Running tests with coverage profile ($coverageOut)..." -ForegroundColor Cyan
-    Push-Location $repoRoot
-    try {
-        $pkgs = @(go list ./... | Where-Object { $_ -notmatch '/e2e$' })
-        # Space-separated flags: PowerShell can mishandle -flag=value for native go.exe (profile never written).
-        go test @pkgs -count=1 -cover -coverprofile $coverageOut -covermode atomic
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        Write-Host ""
-        Write-Host "Per-file summary (last line = total):" -ForegroundColor Cyan
-        go tool cover -func $coverageOut
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
     finally {
@@ -217,12 +230,12 @@ function Help {
     Write-Host "  build          - Build Go app into ./bin/app (Swagger updated first)"
     Write-Host "  run            - Run Go app (no reload)"
     Write-Host "  swag           - Generate Swagger docs"
-    Write-Host "  test           - Run tests with gotestsum (excludes ./e2e; use test-e2e for E2E)"
+    Write-Host "  test           - Tests with gotestsum + coverage -> coverage.out + go tool cover -func"
+    Write-Host "  test-integration - Integration tests (-tags=integration) + coverage -> coverage-integration.out"
     Write-Host "  test-e2e       - HTTP E2E (testcontainers by default; optional E2E_BASE_URL for external API)"
     Write-Host "  loadtest       - k6 load test (BASE_URL, LOADTEST_RATE, LOADTEST_DURATION)"
     Write-Host "  loadtest-smoke - Short k6 sanity run"
     Write-Host "  loadtest-docker - k6 via Docker + volume mount"
-    Write-Host "  test-coverage  - Full merged coverage profile -> coverage.out + go tool cover -func"
     Write-Host "  lint           - Run golangci-lint (see .golangci.yaml)"
     Write-Host "  lint-fix       - Run golangci-lint with --fix"
     Write-Host "  help           - Show this help"
@@ -237,12 +250,12 @@ switch ($Command.ToLower()) {
     "build" { Build }
     "run"   { Run }
     "swag"  { Swagger }
-    "test"           { Test-Project }
+    "test"            { Test-Project }
+    "test-integration" { Test-Integration }
     "test-e2e"        { Test-E2E }
     "loadtest"        { LoadTest }
     "loadtest-smoke"  { LoadTest-Smoke }
     "loadtest-docker" { LoadTest-Docker }
-    "test-coverage"   { Test-Coverage }
     "lint"            { Lint }
     "lint-fix"        { Lint-Fix }
     "help"            { Help }

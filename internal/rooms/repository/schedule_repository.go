@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/internships-backend/test-backend-engory03/internal/rooms/model"
@@ -31,11 +32,15 @@ func NewScheduleRepository(db *gorm.DB) ScheduleRepository {
 }
 
 func isPostgresUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
 	var pqErr *pq.Error
 	if errors.As(err, &pqErr) {
 		return pqErr.Code == "23505"
 	}
-	return false
+	// GORM sometimes returns errors where the chain does not expose *pq.Error.
+	return strings.Contains(err.Error(), "23505")
 }
 
 // CreateIfRoomExists: READ COMMITTED — проверка комнаты и INSERT расписания в одной транзакции.
