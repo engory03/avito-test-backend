@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/internships-backend/test-backend-engory03/internal/app"
 	"github.com/internships-backend/test-backend-engory03/internal/shared/config"
@@ -75,10 +80,36 @@ func main() {
 		RefreshExpiration: refreshExp,
 	})
 
-	fmt.Printf("Dev server started at http://localhost:%s\n", port)
-	fmt.Printf("Swagger docs at http://localhost:%s/docs/index.html\n", port)
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
 
-	if runErr := r.Run(":" + port); runErr != nil {
-		log.Fatalf("server: %v", runErr)
+	go func() {
+		fmt.Printf("Dev server started at http://localhost:%s\n", port)
+		fmt.Printf("Swagger docs at http://localhost:%s/docs/index.html\n", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("server shutdown: %v", err)
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Printf("database pool: %v", err)
+	} else {
+		if cerr := sqlDB.Close(); cerr != nil {
+			log.Printf("database close: %v", cerr)
+		}
 	}
 }
