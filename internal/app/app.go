@@ -8,26 +8,23 @@ import (
 	"github.com/gin-gonic/gin"
 
 	authHttp "github.com/internships-backend/test-backend-engory03/internal/auth/http"
-	authModel "github.com/internships-backend/test-backend-engory03/internal/auth/model"
 	authRepo "github.com/internships-backend/test-backend-engory03/internal/auth/repository"
 	authService "github.com/internships-backend/test-backend-engory03/internal/auth/service"
 
 	bookingsConference "github.com/internships-backend/test-backend-engory03/internal/bookings/conference"
 	bookingsHttp "github.com/internships-backend/test-backend-engory03/internal/bookings/http"
-	bookingsModel "github.com/internships-backend/test-backend-engory03/internal/bookings/model"
 	bookingsRepo "github.com/internships-backend/test-backend-engory03/internal/bookings/repository"
 	bookingsService "github.com/internships-backend/test-backend-engory03/internal/bookings/service"
 
 	roomsHttp "github.com/internships-backend/test-backend-engory03/internal/rooms/http"
-	roomsModel "github.com/internships-backend/test-backend-engory03/internal/rooms/model"
 	roomsRepo "github.com/internships-backend/test-backend-engory03/internal/rooms/repository"
 	roomsService "github.com/internships-backend/test-backend-engory03/internal/rooms/service"
 
 	usersHttp "github.com/internships-backend/test-backend-engory03/internal/users/http"
-	usersModel "github.com/internships-backend/test-backend-engory03/internal/users/model"
 	usersRepo "github.com/internships-backend/test-backend-engory03/internal/users/repository"
 	usersService "github.com/internships-backend/test-backend-engory03/internal/users/service"
 
+	"github.com/internships-backend/test-backend-engory03/internal/db"
 	"github.com/internships-backend/test-backend-engory03/internal/shared/utils"
 	"gorm.io/gorm"
 
@@ -45,16 +42,9 @@ type EngineConfig struct {
 	RefreshExpiration time.Duration
 }
 
-// MigrateDB runs the same AutoMigrate set as the production binary.
-func MigrateDB(db *gorm.DB) error {
-	return db.AutoMigrate(
-		&usersModel.User{},
-		&authModel.RefreshToken{},
-		&roomsModel.Room{},
-		&roomsModel.Schedule{},
-		&roomsModel.Slot{},
-		&bookingsModel.Booking{},
-	)
+// MigrateDB applies SQL migrations (golang-migrate) embedded in internal/db.
+func MigrateDB(gormDB *gorm.DB) error {
+	return db.RunMigrations(gormDB)
 }
 
 // NewEngine builds the Gin engine with API routes (shared by cmd/app and e2e).
