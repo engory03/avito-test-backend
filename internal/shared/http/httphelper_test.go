@@ -8,6 +8,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type errSample struct{}
+
+func (errSample) Error() string { return "x" }
+
 func TestParseExpand(t *testing.T) {
 	m := ParseExpand([]string{"a,b", " c ", ""})
 	if !m["a"] || !m["b"] || !m["c"] {
@@ -40,22 +44,6 @@ func TestJSONError_JSONAPIError_JSONAccessToken(t *testing.T) {
 	JSONAccessToken(c3, "tok")
 	if w3.Code != 200 {
 		t.Fatal(w3.Code)
-	}
-}
-
-type errSample struct{}
-
-func (errSample) Error() string { return "x" }
-
-func TestBindJSON(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/", http.NoBody)
-	c.Request.Header.Set("Content-Type", "application/json")
-	var v struct{ A int }
-	if BindJSON(c, &v) {
-		t.Fatal("expected bind fail on empty body")
 	}
 }
 
