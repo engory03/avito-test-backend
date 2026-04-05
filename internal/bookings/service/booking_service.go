@@ -43,19 +43,6 @@ func (s *bookingService) ListMyFutureBookings(ctx context.Context, userID uuid.U
 }
 
 func (s *bookingService) CreateBooking(ctx context.Context, userID uuid.UUID, req dto.CreateBookingRequest) (*model.Booking, error) {
-	now := time.Now().UTC()
-
-	slot, err := s.repo.GetSlotByID(ctx, req.SlotID)
-	if err != nil {
-		return nil, err
-	}
-	if slot == nil {
-		return nil, ErrSlotNotFound
-	}
-	if slot.StartAt.UTC().Before(now) {
-		return nil, ErrSlotInPast
-	}
-
 	var confLink *string
 	if req.CreateConferenceLink {
 		url, err := s.conference.CreateLink(ctx)
@@ -65,6 +52,7 @@ func (s *bookingService) CreateBooking(ctx context.Context, userID uuid.UUID, re
 		confLink = &url
 	}
 
+	now := time.Now().UTC()
 	b := &model.Booking{
 		ID:             uuid.New(),
 		SlotID:         req.SlotID,
@@ -73,43 +61,34 @@ func (s *bookingService) CreateBooking(ctx context.Context, userID uuid.UUID, re
 		ConferenceLink: confLink,
 	}
 
-	if err := s.repo.CreateActiveBookingIfSlotFree(ctx, b, req.SlotID); err != nil {
-		if errors.Is(err, repository.ErrActiveBookingExists) {
+	if err := s.repo.CreateActiveBookingWithSlotLock(ctx, b, req.SlotID, now); err != nil {
+		switch {
+		case errors.Is(err, repository.ErrBookingSlotNotFound):
+			return nil, ErrSlotNotFound
+		case errors.Is(err, repository.ErrBookingSlotInPast):
+			return nil, ErrSlotInPast
+		case errors.Is(err, repository.ErrActiveBookingExists):
 			return nil, ErrSlotAlreadyBooked
+		default:
+			return nil, err
 		}
-		return nil, err
 	}
 	return b, nil
 }
 
 func (s *bookingService) CancelBooking(ctx context.Context, userID, bookingID uuid.UUID) (*model.Booking, error) {
-	b, err := s.repo.GetByID(ctx, bookingID)
+	b, err := s.repo.CancelBookingForUser(ctx, userID, bookingID)
 	if err != nil {
-		return nil, err
+		switch {
+		case errors.Is(err, repository.ErrCancelBookingNotFound):
+			return nil, ErrBookingNotFound
+		case errors.Is(err, repository.ErrCancelBookingForbidden):
+			return nil, ErrCancelNotOwner
+		default:
+			return nil, err
+		}
 	}
-	if b == nil {
-		return nil, ErrBookingNotFound
-	}
-	if b.UserID != userID {
-		return nil, ErrCancelNotOwner
-	}
-	if b.Status == "cancelled" {
-		return b, nil
-	}
-	if b.Status != "active" {
-		return nil, fmt.Errorf("unexpected booking status: %s", b.Status)
-	}
-	if cancelErr := s.repo.MarkActiveBookingCancelled(ctx, bookingID); cancelErr != nil {
-		return nil, cancelErr
-	}
-	updated, err := s.repo.GetByID(ctx, bookingID)
-	if err != nil {
-		return nil, err
-	}
-	if updated == nil {
-		return nil, ErrBookingNotFound
-	}
-	return updated, nil
+	return b, nil
 }
 
 func (s *bookingService) ListAllBookingsPaged(ctx context.Context, page, pageSize int) ([]*model.Booking, int64, error) {

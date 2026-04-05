@@ -10,3 +10,4 @@ CREATE TABLE IF NOT EXISTS bookings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_bookings_slot_id ON bookings (slot_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_bookings_one_active_per_slot ON bookings (slot_id) WHERE (status = 'active');

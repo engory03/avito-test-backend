@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	bookingsModel "github.com/internships-backend/test-backend-engory03/internal/bookings/model"
@@ -11,7 +12,7 @@ import (
 )
 
 type SlotRepository interface {
-	UpsertGeneratedSlot(ctx context.Context, slot *model.Slot) error
+	UpsertGeneratedSlotsBatch(ctx context.Context, slots []model.Slot) error
 	ListActiveBookedSlotIDs(ctx context.Context, slotIDs []uuid.UUID) (map[uuid.UUID]struct{}, error)
 }
 
@@ -23,11 +24,22 @@ func NewSlotRepository(db *gorm.DB) SlotRepository {
 	return &slotRepository{db: db}
 }
 
-func (r *slotRepository) UpsertGeneratedSlot(ctx context.Context, slot *model.Slot) error {
-	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "room_id"}, {Name: "start_at"}},
-		DoNothing: true,
-	}).Create(slot).Error
+// UpsertGeneratedSlotsBatch: READ COMMITTED — все вставки слотов атомарно.
+func (r *slotRepository) UpsertGeneratedSlotsBatch(ctx context.Context, slots []model.Slot) error {
+	if len(slots) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for i := range slots {
+			if err := tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "room_id"}, {Name: "start_at"}},
+				DoNothing: true,
+			}).Create(&slots[i]).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	}, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 }
 
 func (r *slotRepository) ListActiveBookedSlotIDs(ctx context.Context, slotIDs []uuid.UUID) (map[uuid.UUID]struct{}, error) {

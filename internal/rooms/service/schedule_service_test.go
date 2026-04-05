@@ -8,35 +8,21 @@ import (
 	"github.com/google/uuid"
 	"github.com/internships-backend/test-backend-engory03/internal/rooms/dto"
 	"github.com/internships-backend/test-backend-engory03/internal/rooms/model"
+	"github.com/internships-backend/test-backend-engory03/internal/rooms/repository"
 )
 
-type fakeScheduleRoomRepo struct {
-	exists bool
-	err    error
-}
-
-func (f *fakeScheduleRoomRepo) Create(context.Context, *model.Room) error { return nil }
-func (f *fakeScheduleRoomRepo) ListAll(context.Context) ([]*model.Room, error) {
-	return nil, nil
-}
-func (f *fakeScheduleRoomRepo) ExistsByID(context.Context, uuid.UUID) (bool, error) {
-	return f.exists, f.err
-}
-
 type fakeScheduleRepo struct {
-	exists bool
-	err    error
-	create func(context.Context, *model.Schedule) error
+	createIfRoomExists func(context.Context, *model.Schedule) error
 }
 
-func (f *fakeScheduleRepo) Create(ctx context.Context, s *model.Schedule) error {
-	if f.create != nil {
-		return f.create(ctx, s)
+func (f *fakeScheduleRepo) CreateIfRoomExists(ctx context.Context, s *model.Schedule) error {
+	if f.createIfRoomExists != nil {
+		return f.createIfRoomExists(ctx, s)
 	}
 	return nil
 }
 func (f *fakeScheduleRepo) ExistsByRoomID(context.Context, uuid.UUID) (bool, error) {
-	return f.exists, f.err
+	return false, nil
 }
 func (f *fakeScheduleRepo) GetByRoomID(context.Context, uuid.UUID) (*model.Schedule, error) {
 	return nil, nil
@@ -45,7 +31,7 @@ func (f *fakeScheduleRepo) GetByRoomID(context.Context, uuid.UUID) (*model.Sched
 func TestCreateSchedule_RoomIDMismatch(t *testing.T) {
 	rid := uuid.New()
 	other := uuid.New()
-	svc := NewScheduleService(&fakeScheduleRoomRepo{}, &fakeScheduleRepo{})
+	svc := NewScheduleService(&fakeScheduleRepo{})
 	_, err := svc.CreateSchedule(context.Background(), rid, dto.ScheduleCreateRequest{
 		RoomID: other, DaysOfWeek: []int{1}, StartTime: "09:00", EndTime: "10:00",
 	})
@@ -60,7 +46,11 @@ func TestCreateSchedule_RoomIDMismatch(t *testing.T) {
 
 func TestCreateSchedule_RoomNotFound(t *testing.T) {
 	rid := uuid.New()
-	svc := NewScheduleService(&fakeScheduleRoomRepo{exists: false}, &fakeScheduleRepo{})
+	svc := NewScheduleService(&fakeScheduleRepo{
+		createIfRoomExists: func(context.Context, *model.Schedule) error {
+			return repository.ErrScheduleRoomNotFound
+		},
+	})
 	_, err := svc.CreateSchedule(context.Background(), rid, dto.ScheduleCreateRequest{
 		RoomID: rid, DaysOfWeek: []int{1}, StartTime: "09:00", EndTime: "10:00",
 	})
@@ -71,7 +61,11 @@ func TestCreateSchedule_RoomNotFound(t *testing.T) {
 
 func TestCreateSchedule_AlreadyExists(t *testing.T) {
 	rid := uuid.New()
-	svc := NewScheduleService(&fakeScheduleRoomRepo{exists: true}, &fakeScheduleRepo{exists: true})
+	svc := NewScheduleService(&fakeScheduleRepo{
+		createIfRoomExists: func(context.Context, *model.Schedule) error {
+			return repository.ErrScheduleDuplicateForRoom
+		},
+	})
 	_, err := svc.CreateSchedule(context.Background(), rid, dto.ScheduleCreateRequest{
 		RoomID: rid, DaysOfWeek: []int{1}, StartTime: "09:00", EndTime: "10:00",
 	})
@@ -83,9 +77,8 @@ func TestCreateSchedule_AlreadyExists(t *testing.T) {
 func TestCreateSchedule_Success(t *testing.T) {
 	rid := uuid.New()
 	var saved *model.Schedule
-	svc := NewScheduleService(&fakeScheduleRoomRepo{exists: true}, &fakeScheduleRepo{
-		exists: false,
-		create: func(_ context.Context, s *model.Schedule) error {
+	svc := NewScheduleService(&fakeScheduleRepo{
+		createIfRoomExists: func(_ context.Context, s *model.Schedule) error {
 			saved = s
 			return nil
 		},

@@ -15,13 +15,12 @@ import (
 )
 
 type fakeBookingRepo struct {
-	slotByID          func(context.Context, uuid.UUID) (*roomsModel.Slot, error)
-	createBooking     func(context.Context, *model.Booking, uuid.UUID) error
-	getByID           func(context.Context, uuid.UUID) (*model.Booking, error)
-	markCancelled     func(context.Context, uuid.UUID) error
-	listMy            func(context.Context, uuid.UUID, time.Time) ([]*model.Booking, error)
-	listAllPaged      func(context.Context, int, int) ([]*model.Booking, int64, error)
-	lastGetByIDResult *model.Booking
+	createWithSlotLock func(context.Context, *model.Booking, uuid.UUID, time.Time) error
+	cancelForUser      func(context.Context, uuid.UUID, uuid.UUID) (*model.Booking, error)
+	getByID            func(context.Context, uuid.UUID) (*model.Booking, error)
+	listMy             func(context.Context, uuid.UUID, time.Time) ([]*model.Booking, error)
+	listAllPaged       func(context.Context, int, int) ([]*model.Booking, int64, error)
+	lastGetByIDResult  *model.Booking
 }
 
 func (f *fakeBookingRepo) ListByUserWithFutureSlots(ctx context.Context, userID uuid.UUID, nowUTC time.Time) ([]*model.Booking, error) {
@@ -31,18 +30,22 @@ func (f *fakeBookingRepo) ListByUserWithFutureSlots(ctx context.Context, userID 
 	return nil, nil
 }
 
-func (f *fakeBookingRepo) GetSlotByID(ctx context.Context, slotID uuid.UUID) (*roomsModel.Slot, error) {
-	if f.slotByID != nil {
-		return f.slotByID(ctx, slotID)
-	}
+func (f *fakeBookingRepo) GetSlotByID(context.Context, uuid.UUID) (*roomsModel.Slot, error) {
 	return nil, nil
 }
 
-func (f *fakeBookingRepo) CreateActiveBookingIfSlotFree(ctx context.Context, booking *model.Booking, slotID uuid.UUID) error {
-	if f.createBooking != nil {
-		return f.createBooking(ctx, booking, slotID)
+func (f *fakeBookingRepo) CreateActiveBookingWithSlotLock(ctx context.Context, booking *model.Booking, slotID uuid.UUID, nowUTC time.Time) error {
+	if f.createWithSlotLock != nil {
+		return f.createWithSlotLock(ctx, booking, slotID, nowUTC)
 	}
 	return nil
+}
+
+func (f *fakeBookingRepo) CancelBookingForUser(ctx context.Context, userID, bookingID uuid.UUID) (*model.Booking, error) {
+	if f.cancelForUser != nil {
+		return f.cancelForUser(ctx, userID, bookingID)
+	}
+	return nil, errors.New("noop")
 }
 
 func (f *fakeBookingRepo) GetByID(ctx context.Context, bookingID uuid.UUID) (*model.Booking, error) {
@@ -52,13 +55,6 @@ func (f *fakeBookingRepo) GetByID(ctx context.Context, bookingID uuid.UUID) (*mo
 		return b, err
 	}
 	return nil, nil
-}
-
-func (f *fakeBookingRepo) MarkActiveBookingCancelled(ctx context.Context, bookingID uuid.UUID) error {
-	if f.markCancelled != nil {
-		return f.markCancelled(ctx, bookingID)
-	}
-	return nil
 }
 
 func (f *fakeBookingRepo) ListAllPaged(ctx context.Context, page, pageSize int) ([]*model.Booking, int64, error) {
@@ -92,11 +88,8 @@ func TestListMyFutureBookings_DelegatesToRepo(t *testing.T) {
 func TestCreateBooking_SlotNotFound(t *testing.T) {
 	slotID := uuid.New()
 	repo := &fakeBookingRepo{
-		slotByID: func(_ context.Context, id uuid.UUID) (*roomsModel.Slot, error) {
-			if id != slotID {
-				t.Fatalf("slot id")
-			}
-			return nil, nil
+		createWithSlotLock: func(context.Context, *model.Booking, uuid.UUID, time.Time) error {
+			return repository.ErrBookingSlotNotFound
 		},
 	}
 	svc := NewBookingService(repo, conference.NewMockClientFromEnv())
@@ -109,11 +102,8 @@ func TestCreateBooking_SlotNotFound(t *testing.T) {
 func TestCreateBooking_SlotInPast(t *testing.T) {
 	slotID := uuid.New()
 	repo := &fakeBookingRepo{
-		slotByID: func(_ context.Context, _ uuid.UUID) (*roomsModel.Slot, error) {
-			return &roomsModel.Slot{
-				ID:      slotID,
-				StartAt: time.Date(2020, 1, 1, 10, 0, 0, 0, time.UTC),
-			}, nil
+		createWithSlotLock: func(context.Context, *model.Booking, uuid.UUID, time.Time) error {
+			return repository.ErrBookingSlotInPast
 		},
 	}
 	svc := NewBookingService(repo, conference.NewMockClientFromEnv())
@@ -126,12 +116,8 @@ func TestCreateBooking_SlotInPast(t *testing.T) {
 func TestCreateBooking_Success(t *testing.T) {
 	slotID := uuid.New()
 	userID := uuid.New()
-	future := time.Now().UTC().Add(24 * time.Hour)
 	repo := &fakeBookingRepo{
-		slotByID: func(_ context.Context, _ uuid.UUID) (*roomsModel.Slot, error) {
-			return &roomsModel.Slot{ID: slotID, StartAt: future}, nil
-		},
-		createBooking: func(_ context.Context, b *model.Booking, sid uuid.UUID) error {
+		createWithSlotLock: func(_ context.Context, b *model.Booking, sid uuid.UUID, _ time.Time) error {
 			if sid != slotID || b.UserID != userID || b.Status != "active" {
 				t.Fatalf("booking fields")
 			}
@@ -150,12 +136,8 @@ func TestCreateBooking_Success(t *testing.T) {
 
 func TestCreateBooking_SlotAlreadyBooked(t *testing.T) {
 	slotID := uuid.New()
-	future := time.Now().UTC().Add(48 * time.Hour)
 	repo := &fakeBookingRepo{
-		slotByID: func(_ context.Context, _ uuid.UUID) (*roomsModel.Slot, error) {
-			return &roomsModel.Slot{ID: slotID, StartAt: future}, nil
-		},
-		createBooking: func(context.Context, *model.Booking, uuid.UUID) error {
+		createWithSlotLock: func(context.Context, *model.Booking, uuid.UUID, time.Time) error {
 			return repository.ErrActiveBookingExists
 		},
 	}
@@ -168,12 +150,8 @@ func TestCreateBooking_SlotAlreadyBooked(t *testing.T) {
 
 func TestCreateBooking_ConferenceLink(t *testing.T) {
 	slotID := uuid.New()
-	future := time.Now().UTC().Add(72 * time.Hour)
 	repo := &fakeBookingRepo{
-		slotByID: func(_ context.Context, _ uuid.UUID) (*roomsModel.Slot, error) {
-			return &roomsModel.Slot{ID: slotID, StartAt: future}, nil
-		},
-		createBooking: func(_ context.Context, b *model.Booking, _ uuid.UUID) error {
+		createWithSlotLock: func(_ context.Context, b *model.Booking, _ uuid.UUID, _ time.Time) error {
 			if b.ConferenceLink == nil || *b.ConferenceLink == "" {
 				t.Fatal("expected conference link")
 			}
@@ -192,12 +170,7 @@ func TestCreateBooking_ConferenceLink(t *testing.T) {
 
 func TestCreateBooking_ConferenceFails(t *testing.T) {
 	slotID := uuid.New()
-	future := time.Now().UTC().Add(96 * time.Hour)
-	repo := &fakeBookingRepo{
-		slotByID: func(_ context.Context, _ uuid.UUID) (*roomsModel.Slot, error) {
-			return &roomsModel.Slot{ID: slotID, StartAt: future}, nil
-		},
-	}
+	repo := &fakeBookingRepo{}
 	svc := NewBookingService(repo, &conference.MockClient{Err: errors.New("down")})
 	_, err := svc.CreateBooking(context.Background(), uuid.New(), dto.CreateBookingRequest{
 		SlotID: slotID, CreateConferenceLink: true,
@@ -210,11 +183,8 @@ func TestCreateBooking_ConferenceFails(t *testing.T) {
 func TestCancelBooking_NotFound(t *testing.T) {
 	bid := uuid.New()
 	repo := &fakeBookingRepo{
-		getByID: func(_ context.Context, id uuid.UUID) (*model.Booking, error) {
-			if id != bid {
-				t.Fatal()
-			}
-			return nil, nil
+		cancelForUser: func(context.Context, uuid.UUID, uuid.UUID) (*model.Booking, error) {
+			return nil, repository.ErrCancelBookingNotFound
 		},
 	}
 	svc := NewBookingService(repo, conference.NewMockClientFromEnv())
@@ -225,12 +195,14 @@ func TestCancelBooking_NotFound(t *testing.T) {
 }
 
 func TestCancelBooking_NotOwner(t *testing.T) {
-	owner := uuid.New()
 	other := uuid.New()
 	bid := uuid.New()
 	repo := &fakeBookingRepo{
-		getByID: func(context.Context, uuid.UUID) (*model.Booking, error) {
-			return &model.Booking{ID: bid, UserID: owner, Status: "active"}, nil
+		cancelForUser: func(_ context.Context, u, b uuid.UUID) (*model.Booking, error) {
+			if u != other || b != bid {
+				t.Fatal()
+			}
+			return nil, repository.ErrCancelBookingForbidden
 		},
 	}
 	svc := NewBookingService(repo, conference.NewMockClientFromEnv())
@@ -245,7 +217,7 @@ func TestCancelBooking_IdempotentAlreadyCancelled(t *testing.T) {
 	bid := uuid.New()
 	b := &model.Booking{ID: bid, UserID: uid, Status: "cancelled"}
 	repo := &fakeBookingRepo{
-		getByID: func(context.Context, uuid.UUID) (*model.Booking, error) {
+		cancelForUser: func(context.Context, uuid.UUID, uuid.UUID) (*model.Booking, error) {
 			return b, nil
 		},
 	}
@@ -263,20 +235,9 @@ func TestCancelBooking_ActiveMarksCancelled(t *testing.T) {
 	uid := uuid.New()
 	bid := uuid.New()
 	cancelled := &model.Booking{ID: bid, UserID: uid, Status: "cancelled"}
-	call := 0
 	repo := &fakeBookingRepo{
-		getByID: func(context.Context, uuid.UUID) (*model.Booking, error) {
-			call++
-			if call == 1 {
-				return &model.Booking{ID: bid, UserID: uid, Status: "active"}, nil
-			}
+		cancelForUser: func(context.Context, uuid.UUID, uuid.UUID) (*model.Booking, error) {
 			return cancelled, nil
-		},
-		markCancelled: func(_ context.Context, id uuid.UUID) error {
-			if id != bid {
-				t.Fatal()
-			}
-			return nil
 		},
 	}
 	svc := NewBookingService(repo, conference.NewMockClientFromEnv())
@@ -293,8 +254,8 @@ func TestCancelBooking_UnexpectedStatus(t *testing.T) {
 	uid := uuid.New()
 	bid := uuid.New()
 	repo := &fakeBookingRepo{
-		getByID: func(context.Context, uuid.UUID) (*model.Booking, error) {
-			return &model.Booking{ID: bid, UserID: uid, Status: "pending"}, nil
+		cancelForUser: func(context.Context, uuid.UUID, uuid.UUID) (*model.Booking, error) {
+			return nil, errors.New("unexpected booking status: pending")
 		},
 	}
 	svc := NewBookingService(repo, conference.NewMockClientFromEnv())

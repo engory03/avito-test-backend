@@ -100,10 +100,8 @@ func (s *slotService) ListAvailableSlots(ctx context.Context, roomID uuid.UUID, 
 		return nil, nil
 	}
 
-	for i := range candidates {
-		if upErr := s.slotRepo.UpsertGeneratedSlot(ctx, &candidates[i]); upErr != nil {
-			return nil, upErr
-		}
+	if batchErr := s.slotRepo.UpsertGeneratedSlotsBatch(ctx, candidates); batchErr != nil {
+		return nil, batchErr
 	}
 
 	ids := make([]uuid.UUID, len(candidates))

@@ -74,7 +74,7 @@ func NewEngine(db *gorm.DB, cfg EngineConfig) *gin.Engine {
 	roomService := roomsService.NewRoomService(roomRepo)
 
 	scheduleRepo := roomsRepo.NewScheduleRepository(db)
-	scheduleService := roomsService.NewScheduleService(roomRepo, scheduleRepo)
+	scheduleService := roomsService.NewScheduleService(scheduleRepo)
 
 	slotRepo := roomsRepo.NewSlotRepository(db)
 	slotService := roomsService.NewSlotService(roomRepo, scheduleRepo, slotRepo)

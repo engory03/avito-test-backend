@@ -21,15 +21,11 @@ type ScheduleService interface {
 }
 
 type scheduleService struct {
-	roomRepo     repository.RoomRepository
 	scheduleRepo repository.ScheduleRepository
 }
 
-func NewScheduleService(roomRepo repository.RoomRepository, scheduleRepo repository.ScheduleRepository) ScheduleService {
-	return &scheduleService{
-		roomRepo:     roomRepo,
-		scheduleRepo: scheduleRepo,
-	}
+func NewScheduleService(scheduleRepo repository.ScheduleRepository) ScheduleService {
+	return &scheduleService{scheduleRepo: scheduleRepo}
 }
 
 func (s *scheduleService) CreateSchedule(ctx context.Context, pathRoomID uuid.UUID, req dto.ScheduleCreateRequest) (*model.Schedule, error) {
@@ -38,20 +34,6 @@ func (s *scheduleService) CreateSchedule(ctx context.Context, pathRoomID uuid.UU
 	}
 	if err := validateSchedulePayload(&req); err != nil {
 		return nil, err
-	}
-	ok, err := s.roomRepo.ExistsByID(ctx, pathRoomID)
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return nil, ErrRoomNotFound
-	}
-	has, err := s.scheduleRepo.ExistsByRoomID(ctx, pathRoomID)
-	if err != nil {
-		return nil, err
-	}
-	if has {
-		return nil, ErrScheduleExists
 	}
 	days := append([]int(nil), req.DaysOfWeek...)
 	daysPQ := make(pq.Int64Array, len(days))
@@ -65,8 +47,15 @@ func (s *scheduleService) CreateSchedule(ctx context.Context, pathRoomID uuid.UU
 		StartTime:  req.StartTime,
 		EndTime:    req.EndTime,
 	}
-	if err := s.scheduleRepo.Create(ctx, sched); err != nil {
-		return nil, err
+	if err := s.scheduleRepo.CreateIfRoomExists(ctx, sched); err != nil {
+		switch {
+		case errors.Is(err, repository.ErrScheduleRoomNotFound):
+			return nil, ErrRoomNotFound
+		case errors.Is(err, repository.ErrScheduleDuplicateForRoom):
+			return nil, ErrScheduleExists
+		default:
+			return nil, err
+		}
 	}
 	return sched, nil
 }

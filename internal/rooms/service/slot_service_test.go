@@ -29,7 +29,7 @@ type fakeSlotScheduleRepo struct {
 	err   error
 }
 
-func (f *fakeSlotScheduleRepo) Create(context.Context, *model.Schedule) error { return nil }
+func (f *fakeSlotScheduleRepo) CreateIfRoomExists(context.Context, *model.Schedule) error { return nil }
 func (f *fakeSlotScheduleRepo) ExistsByRoomID(context.Context, uuid.UUID) (bool, error) {
 	return false, nil
 }
@@ -42,7 +42,7 @@ type fakeSlotRepo struct {
 	booked    map[uuid.UUID]struct{}
 }
 
-func (f *fakeSlotRepo) UpsertGeneratedSlot(context.Context, *model.Slot) error {
+func (f *fakeSlotRepo) UpsertGeneratedSlotsBatch(context.Context, []model.Slot) error {
 	return f.upsertErr
 }
 

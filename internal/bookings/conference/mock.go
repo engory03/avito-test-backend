@@ -34,5 +34,5 @@ func (m *MockClient) CreateLink(ctx context.Context) (string, error) {
 		return "", ctx.Err()
 	default:
 	}
-	return fmt.Sprintf("https://conference.mock.example/%s", uuid.NewString()), nil
+	return fmt.Sprintf("https://meet.example.com/%s", uuid.NewString()), nil
 }
