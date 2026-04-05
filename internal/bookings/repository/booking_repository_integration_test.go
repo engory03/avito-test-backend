@@ -19,8 +19,7 @@ import (
 )
 
 func TestBookingRepository_Integration_CreateLockAndCancel(t *testing.T) {
-	db, cleanup := integrationtest.OpenPostgresAndMigrate(t)
-	t.Cleanup(cleanup)
+	db := integrationtest.OpenPostgresAndMigrate(t)
 	ctx := context.Background()
 
 	ur := usersrepo.NewUserRepository(db)
@@ -85,8 +84,7 @@ func TestBookingRepository_Integration_CreateLockAndCancel(t *testing.T) {
 }
 
 func TestBookingRepository_Integration_CreateSlotMissing(t *testing.T) {
-	db, cleanup := integrationtest.OpenPostgresAndMigrate(t)
-	t.Cleanup(cleanup)
+	db := integrationtest.OpenPostgresAndMigrate(t)
 	ctx := context.Background()
 	ur := usersrepo.NewUserRepository(db)
 	user := &usersmodel.User{ID: uuid.New(), Email: "book-miss@x", PasswordHash: "h", Role: "user"}

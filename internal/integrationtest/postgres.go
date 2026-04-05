@@ -5,6 +5,8 @@ package integrationtest
 import (
 	"context"
 	"fmt"
+	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -24,9 +26,50 @@ const (
 	RefreshSecret = "integration-refresh-secret-key-32bytes!"
 )
 
-// OpenPostgresAndMigrate starts Postgres (testcontainers), opens GORM, runs app migrations.
-func OpenPostgresAndMigrate(t *testing.T) (*gorm.DB, func()) {
+var (
+	sharedMu        sync.Mutex
+	sharedDB        *gorm.DB
+	sharedContainer *tcpostgres.PostgresContainer
+)
+
+// RunWithSharedPostgres starts a single Postgres container (testcontainers) for the whole
+// test binary, runs migrations, then m.Run(), then tears down. Call from TestMain:
+//
+//	func TestMain(m *testing.M) { os.Exit(integrationtest.RunWithSharedPostgres(m)) }
+func RunWithSharedPostgres(m *testing.M) int {
+	gin.SetMode(gin.TestMode)
+	if err := startSharedPostgres(); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "integrationtest: postgres: %v\n", err)
+		return 1
+	}
+	code := m.Run()
+	shutdownSharedPostgres()
+	return code
+}
+
+// SharedDB returns the DB opened by RunWithSharedPostgres. Each test package must use TestMain.
+func SharedDB(t *testing.T) *gorm.DB {
 	t.Helper()
+	sharedMu.Lock()
+	defer sharedMu.Unlock()
+	if sharedDB == nil {
+		t.Fatal("integrationtest: SharedDB requires TestMain calling integrationtest.RunWithSharedPostgres")
+	}
+	return sharedDB
+}
+
+// OpenPostgresAndMigrate returns the shared migrated DB (same instance for all tests in the binary).
+func OpenPostgresAndMigrate(t *testing.T) *gorm.DB {
+	t.Helper()
+	return SharedDB(t)
+}
+
+func startSharedPostgres() error {
+	sharedMu.Lock()
+	defer sharedMu.Unlock()
+	if sharedDB != nil {
+		return nil
+	}
 	ctx := context.Background()
 	container, err := tcpostgres.Run(ctx, "postgres:16-alpine",
 		tcpostgres.WithDatabase("itest"),
@@ -38,24 +81,40 @@ func OpenPostgresAndMigrate(t *testing.T) (*gorm.DB, func()) {
 				WithStartupTimeout(2*time.Minute)),
 	)
 	if err != nil {
-		t.Fatalf("postgres container: %v", err)
+		return fmt.Errorf("postgres container: %w", err)
 	}
 	dsn, err := pgDSN(ctx, container)
 	if err != nil {
 		terminate(ctx, container)
-		t.Fatalf("dsn: %v", err)
+		return fmt.Errorf("dsn: %w", err)
 	}
 	db, err := gorm.Open(gormpostgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		terminate(ctx, container)
-		t.Fatalf("gorm open: %v", err)
+		return fmt.Errorf("gorm open: %w", err)
 	}
 	if err := app.MigrateDB(db); err != nil {
 		terminate(ctx, container)
-		t.Fatalf("migrate: %v", err)
+		return fmt.Errorf("migrate: %w", err)
 	}
-	cleanup := func() { terminate(context.Background(), container) }
-	return db, cleanup
+	sharedContainer = container
+	sharedDB = db
+	return nil
+}
+
+func shutdownSharedPostgres() {
+	sharedMu.Lock()
+	defer sharedMu.Unlock()
+	if sharedDB != nil {
+		if sqlDB, err := sharedDB.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+		sharedDB = nil
+	}
+	if sharedContainer != nil {
+		terminate(context.Background(), sharedContainer)
+		sharedContainer = nil
+	}
 }
 
 // SeedDummyUsers inserts admin/user dummy rows used by dummy JWT login.
@@ -74,11 +133,10 @@ func NewJWTManager() *utils.JWTManager {
 	return j
 }
 
-// NewTestEngine returns a full Gin engine against a migrated DB with dummy users; registers t.Cleanup for the container.
+// NewTestEngine returns a full Gin engine against the shared migrated DB with dummy users.
 func NewTestEngine(t *testing.T) (*gin.Engine, *utils.JWTManager) {
 	t.Helper()
-	db, cleanup := OpenPostgresAndMigrate(t)
-	t.Cleanup(cleanup)
+	db := SharedDB(t)
 	SeedDummyUsers(t, db)
 	j := NewJWTManager()
 	r := app.NewEngine(db, app.EngineConfig{

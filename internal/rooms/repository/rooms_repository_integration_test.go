@@ -18,8 +18,7 @@ import (
 )
 
 func TestRoomRepository_Integration_CreateListExists(t *testing.T) {
-	db, cleanup := integrationtest.OpenPostgresAndMigrate(t)
-	t.Cleanup(cleanup)
+	db := integrationtest.OpenPostgresAndMigrate(t)
 	ctx := context.Background()
 	rr := repository.NewRoomRepository(db)
 
@@ -48,8 +47,7 @@ func TestRoomRepository_Integration_CreateListExists(t *testing.T) {
 }
 
 func TestScheduleRepository_Integration_CreateIfRoomExists(t *testing.T) {
-	db, cleanup := integrationtest.OpenPostgresAndMigrate(t)
-	t.Cleanup(cleanup)
+	db := integrationtest.OpenPostgresAndMigrate(t)
 	ctx := context.Background()
 	roomRepo := repository.NewRoomRepository(db)
 	schedRepo := repository.NewScheduleRepository(db)
@@ -92,8 +90,7 @@ func TestScheduleRepository_Integration_CreateIfRoomExists(t *testing.T) {
 }
 
 func TestSlotRepository_Integration_BatchAndBookedLookup(t *testing.T) {
-	db, cleanup := integrationtest.OpenPostgresAndMigrate(t)
-	t.Cleanup(cleanup)
+	db := integrationtest.OpenPostgresAndMigrate(t)
 	ctx := context.Background()
 	roomRepo := repository.NewRoomRepository(db)
 	slotRepo := repository.NewSlotRepository(db)

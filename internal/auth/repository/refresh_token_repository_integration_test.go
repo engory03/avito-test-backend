@@ -16,8 +16,7 @@ import (
 )
 
 func TestRefreshTokenRepository_Integration_SaveDelete(t *testing.T) {
-	db, cleanup := integrationtest.OpenPostgresAndMigrate(t)
-	t.Cleanup(cleanup)
+	db := integrationtest.OpenPostgresAndMigrate(t)
 	ctx := context.Background()
 
 	ur := usersrepo.NewUserRepository(db)

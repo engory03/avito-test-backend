@@ -13,8 +13,7 @@ import (
 )
 
 func TestUserRepository_Integration_CRUD(t *testing.T) {
-	db, cleanup := integrationtest.OpenPostgresAndMigrate(t)
-	t.Cleanup(cleanup)
+	db := integrationtest.OpenPostgresAndMigrate(t)
 	repo := repository.NewUserRepository(db)
 	ctx := context.Background()
 
