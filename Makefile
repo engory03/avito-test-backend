@@ -1,4 +1,4 @@
-.PHONY: dev build run swag test test-e2e test-coverage loadtest loadtest-smoke loadtest-docker up seed down help
+.PHONY: dev build run swag test test-e2e test-coverage loadtest loadtest-smoke loadtest-docker up seed seed-local down help
 
 # Prefer `docker compose` (V2); fall back to `docker-compose` (V1).
 DOCKER_COMPOSE ?= $(shell docker compose version >/dev/null 2>&1 && echo docker compose || echo docker-compose)
@@ -17,6 +17,11 @@ down:
 seed:
 	@echo "Seeding database..."
 	$(DOCKER_COMPOSE) exec app ./seeder
+
+# Seed using local Go binary; uses .env (e.g. DB_HOST=localhost). Postgres must be reachable.
+seed-local:
+	@echo "Seeding database (local go run ./cmd/seed)..."
+	go run ./cmd/seed
 
 dev:
 	@echo "Generating Swagger docs..."
@@ -95,6 +100,7 @@ help:
 	@echo "  up             - Start project with dependencies (docker compose up -d --build)"
 	@echo "  down           - Stop Docker Compose stack"
 	@echo "  seed           - Fill DB via docker compose"
+	@echo "  seed-local     - Fill DB via go run ./cmd/seed (.env → localhost Postgres, no Docker)"
 	@echo "  dev            - Start Air hot reload (with Swagger hot reload)"
 	@echo "  build          - Build Go app into ./bin/app (Swagger updated first)"
 	@echo "  run            - Run Go app (no reload)"

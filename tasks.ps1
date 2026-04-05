@@ -36,6 +36,20 @@ function Seed {
     Write-Host "Database seeded" -ForegroundColor Green
 }
 
+function Seed-Local {
+    $repoRoot = if ([string]::IsNullOrEmpty($PSScriptRoot)) { (Get-Location).Path } else { $PSScriptRoot }
+    Write-Host "Seeding database (local go run ./cmd/seed; uses .env e.g. DB_HOST=localhost)..." -ForegroundColor Cyan
+    Push-Location $repoRoot
+    try {
+        go run ./cmd/seed
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+    finally {
+        Pop-Location
+    }
+    Write-Host "Database seeded" -ForegroundColor Green
+}
+
 function Test-Project {
     Write-Host "Running tests with gotestsum (excludes ./e2e; use test-e2e for E2E)..." -ForegroundColor Cyan
     $pkgs = @(go list ./... | Where-Object { $_ -notmatch '/e2e$' })
@@ -198,6 +212,7 @@ function Help {
     Write-Host "  up             - Start project with dependencies (docker compose up -d --build)"
     Write-Host "  down           - Stop Docker Compose stack"
     Write-Host "  seed           - Fill DB via docker compose"
+    Write-Host "  seed-local     - Fill DB via go run ./cmd/seed (.env -> localhost Postgres, no Docker)"
     Write-Host "  dev            - Start Air hot reload (with Swagger hot reload)"
     Write-Host "  build          - Build Go app into ./bin/app (Swagger updated first)"
     Write-Host "  run            - Run Go app (no reload)"
@@ -216,7 +231,8 @@ function Help {
 switch ($Command.ToLower()) {
     "up"    { Up }
     "down"  { Down }
-    "seed"  { Seed }
+    "seed"        { Seed }
+    "seed-local"  { Seed-Local }
     "dev"   { Dev }
     "build" { Build }
     "run"   { Run }
