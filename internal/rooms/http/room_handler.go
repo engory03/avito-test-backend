@@ -40,7 +40,7 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 		return
 	}
 
-	room, err := h.service.CreateRoom(req)
+	room, err := h.service.CreateRoom(c.Request.Context(), req)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidCapacity) {
 			httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
@@ -63,7 +63,7 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 // @Failure      500 {object} shareddto.APIErrorResponse "Внутренняя ошибка сервера"
 // @Router       /rooms/list [get]
 func (h *RoomHandler) ListRooms(c *gin.Context) {
-	rooms, err := h.service.ListRooms()
+	rooms, err := h.service.ListRooms(c.Request.Context())
 	if err != nil {
 		httphelper.JSONAPIError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 		return

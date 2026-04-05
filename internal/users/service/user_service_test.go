@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -10,44 +11,44 @@ import (
 )
 
 type fakeUsersRepo struct {
-	byEmail func(string) (*model.User, error)
-	create  func(*model.User) error
-	byID    func(uuid.UUID) (*model.User, error)
-	all     func() ([]*model.User, error)
+	byEmail func(context.Context, string) (*model.User, error)
+	create  func(context.Context, *model.User) error
+	byID    func(context.Context, uuid.UUID) (*model.User, error)
+	all     func(context.Context) ([]*model.User, error)
 }
 
-func (f *fakeUsersRepo) Create(u *model.User) error {
+func (f *fakeUsersRepo) Create(ctx context.Context, u *model.User) error {
 	if f.create != nil {
-		return f.create(u)
+		return f.create(ctx, u)
 	}
 	return nil
 }
-func (f *fakeUsersRepo) GetByID(id uuid.UUID) (*model.User, error) {
+func (f *fakeUsersRepo) GetByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
 	if f.byID != nil {
-		return f.byID(id)
+		return f.byID(ctx, id)
 	}
 	return nil, errors.New("nf")
 }
-func (f *fakeUsersRepo) GetByEmail(email string) (*model.User, error) {
+func (f *fakeUsersRepo) GetByEmail(ctx context.Context, email string) (*model.User, error) {
 	if f.byEmail != nil {
-		return f.byEmail(email)
+		return f.byEmail(ctx, email)
 	}
 	return nil, errors.New("nf")
 }
-func (f *fakeUsersRepo) GetAll() ([]*model.User, error) {
+func (f *fakeUsersRepo) GetAll(ctx context.Context) ([]*model.User, error) {
 	if f.all != nil {
-		return f.all()
+		return f.all(ctx)
 	}
 	return nil, nil
 }
 
 func TestCreateUser_DuplicateEmail(t *testing.T) {
 	svc := NewUserService(&fakeUsersRepo{
-		byEmail: func(string) (*model.User, error) {
+		byEmail: func(context.Context, string) (*model.User, error) {
 			return &model.User{}, nil
 		},
 	})
-	_, err := svc.CreateUser(dto.CreateUserRequest{Email: "a@b.c", Password: "longenough", Role: "user"})
+	_, err := svc.CreateUser(context.Background(), dto.CreateUserRequest{Email: "a@b.c", Password: "longenough", Role: "user"})
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -56,15 +57,15 @@ func TestCreateUser_DuplicateEmail(t *testing.T) {
 func TestCreateUser_Success(t *testing.T) {
 	var saved *model.User
 	svc := NewUserService(&fakeUsersRepo{
-		byEmail: func(string) (*model.User, error) {
+		byEmail: func(context.Context, string) (*model.User, error) {
 			return nil, errors.New("nf")
 		},
-		create: func(u *model.User) error {
+		create: func(_ context.Context, u *model.User) error {
 			saved = u
 			return nil
 		},
 	})
-	got, err := svc.CreateUser(dto.CreateUserRequest{
+	got, err := svc.CreateUser(context.Background(), dto.CreateUserRequest{
 		Email: "u@x.y", Password: "password1", Role: "user",
 	})
 	if err != nil || saved == nil || got.Email != "u@x.y" {
@@ -74,11 +75,11 @@ func TestCreateUser_Success(t *testing.T) {
 
 func TestGetUserById_NotFound(t *testing.T) {
 	svc := NewUserService(&fakeUsersRepo{
-		byID: func(_ uuid.UUID) (*model.User, error) {
+		byID: func(context.Context, uuid.UUID) (*model.User, error) {
 			return nil, errors.New("nf")
 		},
 	})
-	_, err := svc.GetUserById(uuid.New())
+	_, err := svc.GetUserById(context.Background(), uuid.New())
 	if err == nil || err.Error() != "user not found" {
 		t.Fatalf("got %v", err)
 	}
@@ -87,11 +88,11 @@ func TestGetUserById_NotFound(t *testing.T) {
 func TestGetAllUsers(t *testing.T) {
 	want := []*model.User{{ID: uuid.New(), Email: "e"}}
 	svc := NewUserService(&fakeUsersRepo{
-		all: func() ([]*model.User, error) {
+		all: func(context.Context) ([]*model.User, error) {
 			return want, nil
 		},
 	})
-	got, err := svc.GetAllUsers()
+	got, err := svc.GetAllUsers(context.Background())
 	if err != nil || len(got) != 1 {
 		t.Fatalf("got %+v", got)
 	}

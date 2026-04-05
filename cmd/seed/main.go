@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -40,7 +41,7 @@ func main() {
 		log.Fatalf("connect database: %v", err)
 	}
 
-	if err := authDummy.EnsureUsersInDB(db); err != nil {
+	if err := authDummy.EnsureUsersInDB(context.Background(), db); err != nil {
 		log.Fatalf("ensure dummy users: %v", err)
 	}
 

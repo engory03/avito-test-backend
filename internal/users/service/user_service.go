@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 
 	"github.com/google/uuid"
@@ -11,10 +12,10 @@ import (
 )
 
 type UserService interface {
-	CreateUser(req dto.CreateUserRequest) (*model.User, error)
-	GetByEmail(email string) (*model.User, error)
-	GetUserById(id uuid.UUID) (*model.User, error)
-	GetAllUsers() ([]*model.User, error)
+	CreateUser(ctx context.Context, req dto.CreateUserRequest) (*model.User, error)
+	GetByEmail(ctx context.Context, email string) (*model.User, error)
+	GetUserById(ctx context.Context, id uuid.UUID) (*model.User, error)
+	GetAllUsers(ctx context.Context) ([]*model.User, error)
 }
 
 type userService struct {
@@ -25,14 +26,12 @@ func NewUserService(r repository.UserRepository) UserService {
 	return &userService{repo: r}
 }
 
-func (s *userService) CreateUser(req dto.CreateUserRequest) (*model.User, error) {
-	// 1. Check if email already exists
-	existingUser, err := s.repo.GetByEmail(req.Email)
+func (s *userService) CreateUser(ctx context.Context, req dto.CreateUserRequest) (*model.User, error) {
+	existingUser, err := s.repo.GetByEmail(ctx, req.Email)
 	if err == nil && existingUser != nil {
 		return nil, errors.New("user with this email already exists")
 	}
 
-	// 2. Hash password before storing
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
 		return nil, errors.New("failed to hash password")
@@ -45,27 +44,27 @@ func (s *userService) CreateUser(req dto.CreateUserRequest) (*model.User, error)
 		Role:         req.Role,
 	}
 
-	if err := s.repo.Create(user); err != nil {
+	if err := s.repo.Create(ctx, user); err != nil {
 		return nil, err
 	}
 
 	return user, nil
 }
 
-func (s *userService) GetByEmail(email string) (*model.User, error) {
-	return s.repo.GetByEmail(email)
+func (s *userService) GetByEmail(ctx context.Context, email string) (*model.User, error) {
+	return s.repo.GetByEmail(ctx, email)
 }
 
-func (s *userService) GetUserById(id uuid.UUID) (*model.User, error) {
-	user, err := s.repo.GetByID(id)
+func (s *userService) GetUserById(ctx context.Context, id uuid.UUID) (*model.User, error) {
+	user, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, errors.New("user not found")
 	}
 	return user, nil
 }
 
-func (s *userService) GetAllUsers() ([]*model.User, error) {
-	users, err := s.repo.GetAll()
+func (s *userService) GetAllUsers(ctx context.Context) ([]*model.User, error) {
+	users, err := s.repo.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -50,7 +50,7 @@ func (h *ScheduleHandler) CreateSchedule(c *gin.Context) {
 		return
 	}
 
-	sched, err := h.service.CreateSchedule(roomID, req)
+	sched, err := h.service.CreateSchedule(c.Request.Context(), roomID, req)
 	if err != nil {
 		var valErr *service.ScheduleValidationError
 		switch {

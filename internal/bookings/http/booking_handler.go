@@ -44,7 +44,7 @@ func (h *BookingHandler) MyBookings(c *gin.Context) {
 		return
 	}
 
-	list, err := h.service.ListMyFutureBookings(id)
+	list, err := h.service.ListMyFutureBookings(c.Request.Context(), id)
 	if err != nil {
 		httphelper.JSONAPIError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 		return
@@ -142,7 +142,7 @@ func (h *BookingHandler) CancelBooking(c *gin.Context) {
 		return
 	}
 
-	b, err := h.service.CancelBooking(uid, bookingID)
+	b, err := h.service.CancelBooking(c.Request.Context(), uid, bookingID)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrBookingNotFound):
@@ -179,7 +179,7 @@ func (h *BookingHandler) ListAllBookings(c *gin.Context) {
 		return
 	}
 
-	rows, total, err := h.service.ListAllBookingsPaged(page, pageSize)
+	rows, total, err := h.service.ListAllBookingsPaged(c.Request.Context(), page, pageSize)
 	if err != nil {
 		httphelper.JSONAPIError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 		return

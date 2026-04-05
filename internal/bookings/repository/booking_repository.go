@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -14,12 +15,12 @@ import (
 var ErrActiveBookingExists = errors.New("active booking exists for slot")
 
 type BookingRepository interface {
-	ListByUserWithFutureSlots(userID uuid.UUID, nowUTC time.Time) ([]*model.Booking, error)
-	GetSlotByID(slotID uuid.UUID) (*roomsModel.Slot, error)
-	CreateActiveBookingIfSlotFree(booking *model.Booking, slotID uuid.UUID) error
-	GetByID(bookingID uuid.UUID) (*model.Booking, error)
-	MarkActiveBookingCancelled(bookingID uuid.UUID) error
-	ListAllPaged(page, pageSize int) (bookings []*model.Booking, total int64, err error)
+	ListByUserWithFutureSlots(ctx context.Context, userID uuid.UUID, nowUTC time.Time) ([]*model.Booking, error)
+	GetSlotByID(ctx context.Context, slotID uuid.UUID) (*roomsModel.Slot, error)
+	CreateActiveBookingIfSlotFree(ctx context.Context, booking *model.Booking, slotID uuid.UUID) error
+	GetByID(ctx context.Context, bookingID uuid.UUID) (*model.Booking, error)
+	MarkActiveBookingCancelled(ctx context.Context, bookingID uuid.UUID) error
+	ListAllPaged(ctx context.Context, page, pageSize int) (bookings []*model.Booking, total int64, err error)
 }
 
 type bookingRepository struct {
@@ -30,9 +31,9 @@ func NewBookingRepository(db *gorm.DB) BookingRepository {
 	return &bookingRepository{db: db}
 }
 
-func (r *bookingRepository) ListByUserWithFutureSlots(userID uuid.UUID, nowUTC time.Time) ([]*model.Booking, error) {
+func (r *bookingRepository) ListByUserWithFutureSlots(ctx context.Context, userID uuid.UUID, nowUTC time.Time) ([]*model.Booking, error) {
 	var rows []*model.Booking
-	err := r.db.Model(&model.Booking{}).
+	err := r.db.WithContext(ctx).Model(&model.Booking{}).
 		Joins("INNER JOIN slots ON slots.id = bookings.slot_id").
 		Where("bookings.user_id = ? AND slots.start_at >= ?", userID, nowUTC).
 		Order("slots.start_at ASC").
@@ -43,9 +44,9 @@ func (r *bookingRepository) ListByUserWithFutureSlots(userID uuid.UUID, nowUTC t
 	return rows, nil
 }
 
-func (r *bookingRepository) GetSlotByID(slotID uuid.UUID) (*roomsModel.Slot, error) {
+func (r *bookingRepository) GetSlotByID(ctx context.Context, slotID uuid.UUID) (*roomsModel.Slot, error) {
 	var s roomsModel.Slot
-	err := r.db.First(&s, "id = ?", slotID).Error
+	err := r.db.WithContext(ctx).First(&s, "id = ?", slotID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -55,8 +56,8 @@ func (r *bookingRepository) GetSlotByID(slotID uuid.UUID) (*roomsModel.Slot, err
 	return &s, nil
 }
 
-func (r *bookingRepository) CreateActiveBookingIfSlotFree(booking *model.Booking, slotID uuid.UUID) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
+func (r *bookingRepository) CreateActiveBookingIfSlotFree(ctx context.Context, booking *model.Booking, slotID uuid.UUID) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var n int64
 		if err := tx.Model(&model.Booking{}).
 			Where("slot_id = ? AND status = ?", slotID, "active").
@@ -70,9 +71,9 @@ func (r *bookingRepository) CreateActiveBookingIfSlotFree(booking *model.Booking
 	})
 }
 
-func (r *bookingRepository) GetByID(bookingID uuid.UUID) (*model.Booking, error) {
+func (r *bookingRepository) GetByID(ctx context.Context, bookingID uuid.UUID) (*model.Booking, error) {
 	var b model.Booking
-	err := r.db.First(&b, "id = ?", bookingID).Error
+	err := r.db.WithContext(ctx).First(&b, "id = ?", bookingID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -82,8 +83,8 @@ func (r *bookingRepository) GetByID(bookingID uuid.UUID) (*model.Booking, error)
 	return &b, nil
 }
 
-func (r *bookingRepository) MarkActiveBookingCancelled(bookingID uuid.UUID) error {
-	return r.db.Model(&model.Booking{}).
+func (r *bookingRepository) MarkActiveBookingCancelled(ctx context.Context, bookingID uuid.UUID) error {
+	return r.db.WithContext(ctx).Model(&model.Booking{}).
 		Where("id = ? AND status = ?", bookingID, "active").
 		Updates(map[string]interface{}{
 			"status":     "cancelled",
@@ -91,15 +92,15 @@ func (r *bookingRepository) MarkActiveBookingCancelled(bookingID uuid.UUID) erro
 		}).Error
 }
 
-func (r *bookingRepository) ListAllPaged(page, pageSize int) ([]*model.Booking, int64, error) {
+func (r *bookingRepository) ListAllPaged(ctx context.Context, page, pageSize int) ([]*model.Booking, int64, error) {
 	var total int64
-	base := r.db.Model(&model.Booking{})
+	base := r.db.WithContext(ctx).Model(&model.Booking{})
 	if err := base.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 	var rows []*model.Booking
 	offset := (page - 1) * pageSize
-	err := r.db.Model(&model.Booking{}).
+	err := r.db.WithContext(ctx).Model(&model.Booking{}).
 		Order("created_at DESC").
 		Offset(offset).
 		Limit(pageSize).

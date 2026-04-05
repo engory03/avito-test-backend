@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -18,7 +19,7 @@ var ErrInvalidSlotListDate = errors.New("invalid date parameter")
 const slotStep = 30 * time.Minute
 
 type SlotService interface {
-	ListAvailableSlots(roomID uuid.UUID, dateStr string) ([]model.Slot, error)
+	ListAvailableSlots(ctx context.Context, roomID uuid.UUID, dateStr string) ([]model.Slot, error)
 }
 
 type slotService struct {
@@ -39,7 +40,7 @@ func NewSlotService(
 	}
 }
 
-func (s *slotService) ListAvailableSlots(roomID uuid.UUID, dateStr string) ([]model.Slot, error) {
+func (s *slotService) ListAvailableSlots(ctx context.Context, roomID uuid.UUID, dateStr string) ([]model.Slot, error) {
 	dateStr = strings.TrimSpace(dateStr)
 	if dateStr == "" {
 		return nil, ErrInvalidSlotListDate
@@ -49,7 +50,7 @@ func (s *slotService) ListAvailableSlots(roomID uuid.UUID, dateStr string) ([]mo
 		return nil, fmt.Errorf("%w: use ISO date YYYY-MM-DD", ErrInvalidSlotListDate)
 	}
 
-	ok, err := s.roomRepo.ExistsByID(roomID)
+	ok, err := s.roomRepo.ExistsByID(ctx, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +58,7 @@ func (s *slotService) ListAvailableSlots(roomID uuid.UUID, dateStr string) ([]mo
 		return nil, ErrRoomNotFound
 	}
 
-	sched, err := s.scheduleRepo.GetByRoomID(roomID)
+	sched, err := s.scheduleRepo.GetByRoomID(ctx, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +101,7 @@ func (s *slotService) ListAvailableSlots(roomID uuid.UUID, dateStr string) ([]mo
 	}
 
 	for i := range candidates {
-		if upErr := s.slotRepo.UpsertGeneratedSlot(&candidates[i]); upErr != nil {
+		if upErr := s.slotRepo.UpsertGeneratedSlot(ctx, &candidates[i]); upErr != nil {
 			return nil, upErr
 		}
 	}
@@ -109,7 +110,7 @@ func (s *slotService) ListAvailableSlots(roomID uuid.UUID, dateStr string) ([]mo
 	for i := range candidates {
 		ids[i] = candidates[i].ID
 	}
-	booked, err := s.slotRepo.ListActiveBookedSlotIDs(ids)
+	booked, err := s.slotRepo.ListActiveBookedSlotIDs(ctx, ids)
 	if err != nil {
 		return nil, err
 	}

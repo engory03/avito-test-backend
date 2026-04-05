@@ -43,7 +43,7 @@ func (h *UserHandler) GetCurrentUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.GetUserById(id)
+	user, err := h.service.GetUserById(c.Request.Context(), id)
 	if err != nil {
 		httphelper.JSONError(c, http.StatusNotFound, err)
 		return
@@ -73,7 +73,7 @@ func (h *UserHandler) GetUserById(c *gin.Context) {
 		return
 	}
 
-	user, err := h.service.GetUserById(id)
+	user, err := h.service.GetUserById(c.Request.Context(), id)
 	if err != nil {
 		httphelper.JSONError(c, http.StatusNotFound, err)
 		return
@@ -94,7 +94,7 @@ func (h *UserHandler) GetUserById(c *gin.Context) {
 // @Failure 500 {object} shareddto.ErrorDefaultResponse "Внутренняя ошибка сервера"
 // @Router /users [get]
 func (h *UserHandler) GetAllUsers(c *gin.Context) {
-	users, err := h.service.GetAllUsers()
+	users, err := h.service.GetAllUsers(c.Request.Context())
 	if err != nil {
 		httphelper.JSONError(c, http.StatusInternalServerError, err)
 		return

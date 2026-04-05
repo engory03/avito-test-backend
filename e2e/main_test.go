@@ -62,7 +62,7 @@ func TestMain(m *testing.M) {
 		terminateContainer(container)
 		log.Fatalf("e2e migrate: %v", migErr)
 	}
-	if seedErr := dummy.EnsureUsersInDB(db); seedErr != nil {
+	if seedErr := dummy.EnsureUsersInDB(ctx, db); seedErr != nil {
 		terminateContainer(container)
 		log.Fatalf("e2e dummy users: %v", seedErr)
 	}

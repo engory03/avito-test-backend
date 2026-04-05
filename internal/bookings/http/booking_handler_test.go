@@ -18,15 +18,15 @@ import (
 )
 
 type stubBookingSvc struct {
-	listMy  func(uuid.UUID) ([]*model.Booking, error)
+	listMy  func(context.Context, uuid.UUID) ([]*model.Booking, error)
 	create  func(context.Context, uuid.UUID, dto.CreateBookingRequest) (*model.Booking, error)
-	cancel  func(uuid.UUID, uuid.UUID) (*model.Booking, error)
-	listAll func(int, int) ([]*model.Booking, int64, error)
+	cancel  func(context.Context, uuid.UUID, uuid.UUID) (*model.Booking, error)
+	listAll func(context.Context, int, int) ([]*model.Booking, int64, error)
 }
 
-func (s *stubBookingSvc) ListMyFutureBookings(userID uuid.UUID) ([]*model.Booking, error) {
+func (s *stubBookingSvc) ListMyFutureBookings(ctx context.Context, userID uuid.UUID) ([]*model.Booking, error) {
 	if s.listMy != nil {
-		return s.listMy(userID)
+		return s.listMy(ctx, userID)
 	}
 	return nil, nil
 }
@@ -38,16 +38,16 @@ func (s *stubBookingSvc) CreateBooking(ctx context.Context, userID uuid.UUID, re
 	return nil, errors.New("noop")
 }
 
-func (s *stubBookingSvc) CancelBooking(userID, bookingID uuid.UUID) (*model.Booking, error) {
+func (s *stubBookingSvc) CancelBooking(ctx context.Context, userID, bookingID uuid.UUID) (*model.Booking, error) {
 	if s.cancel != nil {
-		return s.cancel(userID, bookingID)
+		return s.cancel(ctx, userID, bookingID)
 	}
 	return nil, errors.New("noop")
 }
 
-func (s *stubBookingSvc) ListAllBookingsPaged(page, pageSize int) ([]*model.Booking, int64, error) {
+func (s *stubBookingSvc) ListAllBookingsPaged(ctx context.Context, page, pageSize int) ([]*model.Booking, int64, error) {
 	if s.listAll != nil {
-		return s.listAll(page, pageSize)
+		return s.listAll(ctx, page, pageSize)
 	}
 	return nil, 0, nil
 }
@@ -57,6 +57,7 @@ func newCtxWithUser(t *testing.T, uid uuid.UUID) (*gin.Context, *httptest.Respon
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	c.Set("user_id", uid)
 	return c, w
 }
@@ -77,7 +78,7 @@ func TestBookingHandler_MyBookings_OK(t *testing.T) {
 	b := &model.Booking{ID: uuid.New(), UserID: uid, Status: "active", CreatedAt: time.Now().UTC()}
 	c, w := newCtxWithUser(t, uid)
 	h := NewBookingHandler(&stubBookingSvc{
-		listMy: func(u uuid.UUID) ([]*model.Booking, error) {
+		listMy: func(_ context.Context, u uuid.UUID) ([]*model.Booking, error) {
 			if u != uid {
 				t.Fatal()
 			}
@@ -164,7 +165,7 @@ func TestBookingHandler_CancelBooking_Errors(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodPost, tc.path, http.NoBody)
 		c.Params = gin.Params{{Key: "bookingId", Value: bid.String()}}
 		h := NewBookingHandler(&stubBookingSvc{
-			cancel: func(u, b uuid.UUID) (*model.Booking, error) {
+			cancel: func(_ context.Context, u, b uuid.UUID) (*model.Booking, error) {
 				return nil, tc.err
 			},
 		})
@@ -189,7 +190,7 @@ func TestBookingHandler_ListAllBookings(t *testing.T) {
 	c, w := newCtxWithUser(t, uuid.New())
 	c.Request = httptest.NewRequest(http.MethodGet, "/list?page=1&pageSize=10", http.NoBody)
 	h := NewBookingHandler(&stubBookingSvc{
-		listAll: func(page, ps int) ([]*model.Booking, int64, error) {
+		listAll: func(_ context.Context, page, ps int) ([]*model.Booking, int64, error) {
 			if page != 1 || ps != 10 {
 				t.Fatal()
 			}

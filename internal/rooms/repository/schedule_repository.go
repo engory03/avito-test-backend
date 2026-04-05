@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 
 	"github.com/google/uuid"
@@ -9,9 +10,9 @@ import (
 )
 
 type ScheduleRepository interface {
-	Create(schedule *model.Schedule) error
-	ExistsByRoomID(roomID uuid.UUID) (bool, error)
-	GetByRoomID(roomID uuid.UUID) (*model.Schedule, error)
+	Create(ctx context.Context, schedule *model.Schedule) error
+	ExistsByRoomID(ctx context.Context, roomID uuid.UUID) (bool, error)
+	GetByRoomID(ctx context.Context, roomID uuid.UUID) (*model.Schedule, error)
 }
 
 type scheduleRepository struct {
@@ -22,19 +23,19 @@ func NewScheduleRepository(db *gorm.DB) ScheduleRepository {
 	return &scheduleRepository{db: db}
 }
 
-func (r *scheduleRepository) Create(schedule *model.Schedule) error {
-	return r.db.Create(schedule).Error
+func (r *scheduleRepository) Create(ctx context.Context, schedule *model.Schedule) error {
+	return r.db.WithContext(ctx).Create(schedule).Error
 }
 
-func (r *scheduleRepository) ExistsByRoomID(roomID uuid.UUID) (bool, error) {
+func (r *scheduleRepository) ExistsByRoomID(ctx context.Context, roomID uuid.UUID) (bool, error) {
 	var count int64
-	err := r.db.Model(&model.Schedule{}).Where("room_id = ?", roomID).Count(&count).Error
+	err := r.db.WithContext(ctx).Model(&model.Schedule{}).Where("room_id = ?", roomID).Count(&count).Error
 	return count > 0, err
 }
 
-func (r *scheduleRepository) GetByRoomID(roomID uuid.UUID) (*model.Schedule, error) {
+func (r *scheduleRepository) GetByRoomID(ctx context.Context, roomID uuid.UUID) (*model.Schedule, error) {
 	var s model.Schedule
-	err := r.db.Where("room_id = ?", roomID).First(&s).Error
+	err := r.db.WithContext(ctx).Where("room_id = ?", roomID).First(&s).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}

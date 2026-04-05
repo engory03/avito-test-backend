@@ -67,8 +67,8 @@ func main() {
 		log.Fatalf("Failed to connect database: %v", err)
 	}
 
-	if err := app.MigrateDB(db); err != nil {
-		log.Fatalf("Failed to migrate database: %v", err)
+	if migErr := app.MigrateDB(db); migErr != nil {
+		log.Fatalf("Failed to migrate database: %v", migErr)
 	}
 
 	fmt.Println("Database migrated successfully")
@@ -89,8 +89,8 @@ func main() {
 	go func() {
 		fmt.Printf("Dev server started at http://localhost:%s\n", port)
 		fmt.Printf("Swagger docs at http://localhost:%s/docs/index.html\n", port)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %v", err)
+		if listenErr := srv.ListenAndServe(); listenErr != nil && listenErr != http.ErrServerClosed {
+			log.Fatalf("listen: %v", listenErr)
 		}
 	}()
 
@@ -99,14 +99,15 @@ func main() {
 	<-quit
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("server shutdown: %v", err)
+	shutdownErr := srv.Shutdown(shutdownCtx)
+	cancel()
+	if shutdownErr != nil {
+		log.Fatalf("server shutdown: %v", shutdownErr)
 	}
 
-	sqlDB, err := db.DB()
-	if err != nil {
-		log.Printf("database pool: %v", err)
+	sqlDB, sqlErr := db.DB()
+	if sqlErr != nil {
+		log.Printf("database pool: %v", sqlErr)
 	} else {
 		if cerr := sqlDB.Close(); cerr != nil {
 			log.Printf("database close: %v", cerr)

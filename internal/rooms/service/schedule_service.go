@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 
 	"github.com/google/uuid"
@@ -16,7 +17,7 @@ var (
 )
 
 type ScheduleService interface {
-	CreateSchedule(pathRoomID uuid.UUID, req dto.ScheduleCreateRequest) (*model.Schedule, error)
+	CreateSchedule(ctx context.Context, pathRoomID uuid.UUID, req dto.ScheduleCreateRequest) (*model.Schedule, error)
 }
 
 type scheduleService struct {
@@ -31,21 +32,21 @@ func NewScheduleService(roomRepo repository.RoomRepository, scheduleRepo reposit
 	}
 }
 
-func (s *scheduleService) CreateSchedule(pathRoomID uuid.UUID, req dto.ScheduleCreateRequest) (*model.Schedule, error) {
+func (s *scheduleService) CreateSchedule(ctx context.Context, pathRoomID uuid.UUID, req dto.ScheduleCreateRequest) (*model.Schedule, error) {
 	if req.RoomID != pathRoomID {
 		return nil, &ScheduleValidationError{Message: "roomId in path must match roomId in body"}
 	}
 	if err := validateSchedulePayload(&req); err != nil {
 		return nil, err
 	}
-	ok, err := s.roomRepo.ExistsByID(pathRoomID)
+	ok, err := s.roomRepo.ExistsByID(ctx, pathRoomID)
 	if err != nil {
 		return nil, err
 	}
 	if !ok {
 		return nil, ErrRoomNotFound
 	}
-	has, err := s.scheduleRepo.ExistsByRoomID(pathRoomID)
+	has, err := s.scheduleRepo.ExistsByRoomID(ctx, pathRoomID)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +65,7 @@ func (s *scheduleService) CreateSchedule(pathRoomID uuid.UUID, req dto.ScheduleC
 		StartTime:  req.StartTime,
 		EndTime:    req.EndTime,
 	}
-	if err := s.scheduleRepo.Create(sched); err != nil {
+	if err := s.scheduleRepo.Create(ctx, sched); err != nil {
 		return nil, err
 	}
 	return sched, nil

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -18,11 +19,11 @@ import (
 var ErrInvalidDummyRole = errors.New("invalid role for dummy login")
 
 type AuthService interface {
-	Register(req dto.RegisterRequest) (*dto.AuthTokens, error)
-	Login(req dto.LoginRequest) (*dto.AuthTokens, error)
-	Refresh(refreshToken string) (*dto.AuthTokens, error)
-	Logout(refreshToken string) error
-	DummyLogin(req dto.DummyLoginRequest) (string, error)
+	Register(ctx context.Context, req dto.RegisterRequest) (*dto.AuthTokens, error)
+	Login(ctx context.Context, req dto.LoginRequest) (*dto.AuthTokens, error)
+	Refresh(ctx context.Context, refreshToken string) (*dto.AuthTokens, error)
+	Logout(ctx context.Context, refreshToken string) error
+	DummyLogin(ctx context.Context, req dto.DummyLoginRequest) (string, error)
 }
 
 type authService struct {
@@ -35,20 +36,17 @@ func NewAuthService(u usersRepo.UserRepository, r repository.RefreshTokenReposit
 	return &authService{userRepo: u, refreshRepo: r, jwt: j}
 }
 
-func (s *authService) Register(req dto.RegisterRequest) (*dto.AuthTokens, error) {
-	// 1. Check if user already exists
-	existing, _ := s.userRepo.GetByEmail(req.Email)
+func (s *authService) Register(ctx context.Context, req dto.RegisterRequest) (*dto.AuthTokens, error) {
+	existing, _ := s.userRepo.GetByEmail(ctx, req.Email)
 	if existing != nil {
 		return nil, errors.New("user with this email already exists")
 	}
 
-	// 2. Hash password
 	hashed, err := utils.HashPassword(req.Password)
 	if err != nil {
 		return nil, err
 	}
 
-	// 3. Create user model
 	user := &usersModel.User{
 		ID:           uuid.New(),
 		Email:        req.Email,
@@ -56,12 +54,10 @@ func (s *authService) Register(req dto.RegisterRequest) (*dto.AuthTokens, error)
 		Role:         req.Role,
 	}
 
-	// 4. Save to DB
-	if createErr := s.userRepo.Create(user); createErr != nil {
+	if createErr := s.userRepo.Create(ctx, user); createErr != nil {
 		return nil, createErr
 	}
 
-	// 5. Generate JWTs
 	access, err := s.jwt.GenerateAccessToken(user.ID, "user")
 	if err != nil {
 		return nil, err
@@ -72,13 +68,12 @@ func (s *authService) Register(req dto.RegisterRequest) (*dto.AuthTokens, error)
 		return nil, err
 	}
 
-	// 6. Store refresh token
 	tokenModel := &model.RefreshToken{
 		UserID:    user.ID,
 		Token:     refresh,
 		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 	}
-	if err := s.refreshRepo.Save(tokenModel); err != nil {
+	if err := s.refreshRepo.Save(ctx, tokenModel); err != nil {
 		return nil, err
 	}
 
@@ -88,8 +83,8 @@ func (s *authService) Register(req dto.RegisterRequest) (*dto.AuthTokens, error)
 	}, nil
 }
 
-func (s *authService) Login(req dto.LoginRequest) (*dto.AuthTokens, error) {
-	user, err := s.userRepo.GetByEmail(req.Email)
+func (s *authService) Login(ctx context.Context, req dto.LoginRequest) (*dto.AuthTokens, error) {
+	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
 		return nil, errors.New("invalid email or password")
 	}
@@ -114,7 +109,7 @@ func (s *authService) Login(req dto.LoginRequest) (*dto.AuthTokens, error) {
 		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 	}
 
-	if err := s.refreshRepo.Save(tokenModel); err != nil {
+	if err := s.refreshRepo.Save(ctx, tokenModel); err != nil {
 		return nil, err
 	}
 
@@ -124,7 +119,7 @@ func (s *authService) Login(req dto.LoginRequest) (*dto.AuthTokens, error) {
 	}, nil
 }
 
-func (s *authService) Refresh(refreshToken string) (*dto.AuthTokens, error) {
+func (s *authService) Refresh(ctx context.Context, refreshToken string) (*dto.AuthTokens, error) {
 	claims, err := s.jwt.VerifyRefreshToken(refreshToken)
 	if err != nil {
 		return nil, errors.New("invalid refresh token")
@@ -147,7 +142,7 @@ func (s *authService) Refresh(refreshToken string) (*dto.AuthTokens, error) {
 		return nil, err
 	}
 
-	_ = s.refreshRepo.Delete(refreshToken)
+	_ = s.refreshRepo.Delete(ctx, refreshToken)
 
 	tokenModel := &model.RefreshToken{
 		UserID:    userID,
@@ -155,7 +150,7 @@ func (s *authService) Refresh(refreshToken string) (*dto.AuthTokens, error) {
 		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 	}
 
-	if err := s.refreshRepo.Save(tokenModel); err != nil {
+	if err := s.refreshRepo.Save(ctx, tokenModel); err != nil {
 		return nil, err
 	}
 
@@ -165,11 +160,11 @@ func (s *authService) Refresh(refreshToken string) (*dto.AuthTokens, error) {
 	}, nil
 }
 
-func (s *authService) Logout(refreshToken string) error {
-	return s.refreshRepo.Delete(refreshToken)
+func (s *authService) Logout(ctx context.Context, refreshToken string) error {
+	return s.refreshRepo.Delete(ctx, refreshToken)
 }
 
-func (s *authService) DummyLogin(req dto.DummyLoginRequest) (string, error) {
+func (s *authService) DummyLogin(_ context.Context, req dto.DummyLoginRequest) (string, error) {
 	var uid uuid.UUID
 	switch req.Role {
 	case "admin":

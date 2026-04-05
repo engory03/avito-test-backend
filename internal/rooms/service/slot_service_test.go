@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -15,11 +16,11 @@ type fakeSlotRoomRepo struct {
 	err    error
 }
 
-func (f *fakeSlotRoomRepo) Create(*model.Room) error { return nil }
-func (f *fakeSlotRoomRepo) ListAll() ([]*model.Room, error) {
+func (f *fakeSlotRoomRepo) Create(context.Context, *model.Room) error { return nil }
+func (f *fakeSlotRoomRepo) ListAll(context.Context) ([]*model.Room, error) {
 	return nil, nil
 }
-func (f *fakeSlotRoomRepo) ExistsByID(uuid.UUID) (bool, error) {
+func (f *fakeSlotRoomRepo) ExistsByID(context.Context, uuid.UUID) (bool, error) {
 	return f.exists, f.err
 }
 
@@ -28,11 +29,11 @@ type fakeSlotScheduleRepo struct {
 	err   error
 }
 
-func (f *fakeSlotScheduleRepo) Create(*model.Schedule) error { return nil }
-func (f *fakeSlotScheduleRepo) ExistsByRoomID(uuid.UUID) (bool, error) {
+func (f *fakeSlotScheduleRepo) Create(context.Context, *model.Schedule) error { return nil }
+func (f *fakeSlotScheduleRepo) ExistsByRoomID(context.Context, uuid.UUID) (bool, error) {
 	return false, nil
 }
-func (f *fakeSlotScheduleRepo) GetByRoomID(uuid.UUID) (*model.Schedule, error) {
+func (f *fakeSlotScheduleRepo) GetByRoomID(context.Context, uuid.UUID) (*model.Schedule, error) {
 	return f.sched, f.err
 }
 
@@ -41,11 +42,11 @@ type fakeSlotRepo struct {
 	booked    map[uuid.UUID]struct{}
 }
 
-func (f *fakeSlotRepo) UpsertGeneratedSlot(*model.Slot) error {
+func (f *fakeSlotRepo) UpsertGeneratedSlot(context.Context, *model.Slot) error {
 	return f.upsertErr
 }
 
-func (f *fakeSlotRepo) ListActiveBookedSlotIDs(slotIDs []uuid.UUID) (map[uuid.UUID]struct{}, error) {
+func (f *fakeSlotRepo) ListActiveBookedSlotIDs(_ context.Context, slotIDs []uuid.UUID) (map[uuid.UUID]struct{}, error) {
 	if f.booked != nil {
 		return f.booked, nil
 	}
@@ -54,11 +55,11 @@ func (f *fakeSlotRepo) ListActiveBookedSlotIDs(slotIDs []uuid.UUID) (map[uuid.UU
 
 func TestListAvailableSlots_InvalidDate(t *testing.T) {
 	svc := NewSlotService(&fakeSlotRoomRepo{}, &fakeSlotScheduleRepo{}, &fakeSlotRepo{})
-	_, err := svc.ListAvailableSlots(uuid.New(), "")
+	_, err := svc.ListAvailableSlots(context.Background(), uuid.New(), "")
 	if !errors.Is(err, ErrInvalidSlotListDate) {
 		t.Fatalf("got %v", err)
 	}
-	_, err = svc.ListAvailableSlots(uuid.New(), "not-a-date")
+	_, err = svc.ListAvailableSlots(context.Background(), uuid.New(), "not-a-date")
 	if err == nil || !errors.Is(err, ErrInvalidSlotListDate) {
 		t.Fatalf("got %v", err)
 	}
@@ -66,7 +67,7 @@ func TestListAvailableSlots_InvalidDate(t *testing.T) {
 
 func TestListAvailableSlots_RoomNotFound(t *testing.T) {
 	svc := NewSlotService(&fakeSlotRoomRepo{exists: false}, &fakeSlotScheduleRepo{}, &fakeSlotRepo{})
-	_, err := svc.ListAvailableSlots(uuid.New(), "2026-04-06")
+	_, err := svc.ListAvailableSlots(context.Background(), uuid.New(), "2026-04-06")
 	if !errors.Is(err, ErrRoomNotFound) {
 		t.Fatalf("got %v", err)
 	}
@@ -75,7 +76,7 @@ func TestListAvailableSlots_RoomNotFound(t *testing.T) {
 func TestListAvailableSlots_NoSchedule(t *testing.T) {
 	rid := uuid.New()
 	svc := NewSlotService(&fakeSlotRoomRepo{exists: true}, &fakeSlotScheduleRepo{sched: nil}, &fakeSlotRepo{})
-	got, err := svc.ListAvailableSlots(rid, "2026-04-06")
+	got, err := svc.ListAvailableSlots(context.Background(), rid, "2026-04-06")
 	if err != nil || got != nil {
 		t.Fatalf("got %v err %v", got, err)
 	}
@@ -83,13 +84,12 @@ func TestListAvailableSlots_NoSchedule(t *testing.T) {
 
 func TestListAvailableSlots_WeekdayNotInSchedule(t *testing.T) {
 	rid := uuid.New()
-	// 2026-04-06 is Monday (1). Schedule only Tuesday (2).
 	sched := &model.Schedule{
 		RoomID: rid, DaysOfWeek: pq.Int64Array{2},
 		StartTime: "09:00", EndTime: "18:00",
 	}
 	svc := NewSlotService(&fakeSlotRoomRepo{exists: true}, &fakeSlotScheduleRepo{sched: sched}, &fakeSlotRepo{})
-	got, err := svc.ListAvailableSlots(rid, "2026-04-06")
+	got, err := svc.ListAvailableSlots(context.Background(), rid, "2026-04-06")
 	if err != nil || len(got) != 0 {
 		t.Fatalf("got %v err %v", got, err)
 	}
@@ -102,7 +102,7 @@ func TestListAvailableSlots_GeneratesFreeSlots(t *testing.T) {
 		StartTime: "09:00", EndTime: "10:00",
 	}
 	svc := NewSlotService(&fakeSlotRoomRepo{exists: true}, &fakeSlotScheduleRepo{sched: sched}, &fakeSlotRepo{})
-	got, err := svc.ListAvailableSlots(rid, "2026-04-06")
+	got, err := svc.ListAvailableSlots(context.Background(), rid, "2026-04-06")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +123,7 @@ func TestListAvailableSlots_FiltersBooked(t *testing.T) {
 	svc := NewSlotService(&fakeSlotRoomRepo{exists: true}, &fakeSlotScheduleRepo{sched: sched}, &fakeSlotRepo{
 		booked: nil,
 	})
-	all, err := svc.ListAvailableSlots(rid, "2026-04-06")
+	all, err := svc.ListAvailableSlots(context.Background(), rid, "2026-04-06")
 	if err != nil || len(all) != 2 {
 		t.Fatalf("setup %+v", all)
 	}
@@ -131,7 +131,7 @@ func TestListAvailableSlots_FiltersBooked(t *testing.T) {
 	svc2 := NewSlotService(&fakeSlotRoomRepo{exists: true}, &fakeSlotScheduleRepo{sched: sched}, &fakeSlotRepo{
 		booked: map[uuid.UUID]struct{}{firstID: {}},
 	})
-	got, err := svc2.ListAvailableSlots(rid, "2026-04-06")
+	got, err := svc2.ListAvailableSlots(context.Background(), rid, "2026-04-06")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func TestListAvailableSlots_InvalidScheduleTime(t *testing.T) {
 		StartTime: "25:00", EndTime: "26:00",
 	}
 	svc := NewSlotService(&fakeSlotRoomRepo{exists: true}, &fakeSlotScheduleRepo{sched: sched}, &fakeSlotRepo{})
-	_, err := svc.ListAvailableSlots(rid, "2026-04-06")
+	_, err := svc.ListAvailableSlots(context.Background(), rid, "2026-04-06")
 	if err == nil {
 		t.Fatal("expected parse error")
 	}
@@ -160,14 +160,14 @@ func TestListAvailableSlots_WindowNotPositive(t *testing.T) {
 		StartTime: "12:00", EndTime: "12:00",
 	}
 	svc := NewSlotService(&fakeSlotRoomRepo{exists: true}, &fakeSlotScheduleRepo{sched: sched}, &fakeSlotRepo{})
-	got, err := svc.ListAvailableSlots(rid, "2026-04-06")
+	got, err := svc.ListAvailableSlots(context.Background(), rid, "2026-04-06")
 	if err != nil || got != nil {
 		t.Fatalf("got %v err %v", got, err)
 	}
 }
 
 func TestApiWeekday_SundayIsSeven(t *testing.T) {
-	sun := time.Date(2026, 4, 5, 0, 0, 0, 0, time.UTC) // Sunday
+	sun := time.Date(2026, 4, 5, 0, 0, 0, 0, time.UTC)
 	if apiWeekday(sun) != 7 {
 		t.Fatalf("got %d", apiWeekday(sun))
 	}

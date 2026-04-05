@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -14,39 +15,41 @@ import (
 )
 
 type fakeAuthUserRepo struct {
-	byEmail func(string) (*usersModel.User, error)
-	create  func(*usersModel.User) error
+	byEmail func(context.Context, string) (*usersModel.User, error)
+	create  func(context.Context, *usersModel.User) error
 }
 
-func (f *fakeAuthUserRepo) Create(u *usersModel.User) error {
+func (f *fakeAuthUserRepo) Create(ctx context.Context, u *usersModel.User) error {
 	if f.create != nil {
-		return f.create(u)
+		return f.create(ctx, u)
 	}
 	return nil
 }
-func (f *fakeAuthUserRepo) GetByID(uuid.UUID) (*usersModel.User, error) { return nil, errors.New("nf") }
-func (f *fakeAuthUserRepo) GetByEmail(email string) (*usersModel.User, error) {
+func (f *fakeAuthUserRepo) GetByID(context.Context, uuid.UUID) (*usersModel.User, error) {
+	return nil, errors.New("nf")
+}
+func (f *fakeAuthUserRepo) GetByEmail(ctx context.Context, email string) (*usersModel.User, error) {
 	if f.byEmail != nil {
-		return f.byEmail(email)
+		return f.byEmail(ctx, email)
 	}
 	return nil, errors.New("not found")
 }
-func (f *fakeAuthUserRepo) GetAll() ([]*usersModel.User, error) { return nil, nil }
+func (f *fakeAuthUserRepo) GetAll(context.Context) ([]*usersModel.User, error) { return nil, nil }
 
 type fakeRefreshRepo struct {
-	save   func(*authModel.RefreshToken) error
-	delete func(string) error
+	save   func(context.Context, *authModel.RefreshToken) error
+	delete func(context.Context, string) error
 }
 
-func (f *fakeRefreshRepo) Save(t *authModel.RefreshToken) error {
+func (f *fakeRefreshRepo) Save(ctx context.Context, t *authModel.RefreshToken) error {
 	if f.save != nil {
-		return f.save(t)
+		return f.save(ctx, t)
 	}
 	return nil
 }
-func (f *fakeRefreshRepo) Delete(token string) error {
+func (f *fakeRefreshRepo) Delete(ctx context.Context, token string) error {
 	if f.delete != nil {
-		return f.delete(token)
+		return f.delete(ctx, token)
 	}
 	return nil
 }
@@ -58,7 +61,7 @@ func testJWT(t *testing.T) *utils.JWTManager {
 
 func TestDummyLogin_InvalidRole(t *testing.T) {
 	svc := NewAuthService(&fakeAuthUserRepo{}, &fakeRefreshRepo{}, testJWT(t))
-	_, err := svc.DummyLogin(dto.DummyLoginRequest{Role: "guest"})
+	_, err := svc.DummyLogin(context.Background(), dto.DummyLoginRequest{Role: "guest"})
 	if !errors.Is(err, ErrInvalidDummyRole) {
 		t.Fatalf("got %v", err)
 	}
@@ -67,7 +70,7 @@ func TestDummyLogin_InvalidRole(t *testing.T) {
 func TestDummyLogin_AdminAndUser(t *testing.T) {
 	j := testJWT(t)
 	svc := NewAuthService(&fakeAuthUserRepo{}, &fakeRefreshRepo{}, j)
-	adminTok, err := svc.DummyLogin(dto.DummyLoginRequest{Role: "admin"})
+	adminTok, err := svc.DummyLogin(context.Background(), dto.DummyLoginRequest{Role: "admin"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +78,7 @@ func TestDummyLogin_AdminAndUser(t *testing.T) {
 	if err != nil || cl.Role != "admin" || cl.UserID != dummy.DummyAdminID.String() {
 		t.Fatalf("claims %+v err %v", cl, err)
 	}
-	userTok, err := svc.DummyLogin(dto.DummyLoginRequest{Role: "user"})
+	userTok, err := svc.DummyLogin(context.Background(), dto.DummyLoginRequest{Role: "user"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,11 +90,11 @@ func TestDummyLogin_AdminAndUser(t *testing.T) {
 
 func TestRegister_DuplicateEmail(t *testing.T) {
 	svc := NewAuthService(&fakeAuthUserRepo{
-		byEmail: func(string) (*usersModel.User, error) {
+		byEmail: func(context.Context, string) (*usersModel.User, error) {
 			return &usersModel.User{Email: "a@b.c"}, nil
 		},
 	}, &fakeRefreshRepo{}, testJWT(t))
-	_, err := svc.Register(dto.RegisterRequest{Email: "a@b.c", Password: "secret12", Role: "user"})
+	_, err := svc.Register(context.Background(), dto.RegisterRequest{Email: "a@b.c", Password: "secret12", Role: "user"})
 	if err == nil || err.Error() == "" {
 		t.Fatalf("got %v", err)
 	}
@@ -99,12 +102,12 @@ func TestRegister_DuplicateEmail(t *testing.T) {
 
 func TestRegister_Success(t *testing.T) {
 	svc := NewAuthService(&fakeAuthUserRepo{
-		byEmail: func(string) (*usersModel.User, error) {
+		byEmail: func(context.Context, string) (*usersModel.User, error) {
 			return nil, errors.New("not found")
 		},
-		create: func(*usersModel.User) error { return nil },
+		create: func(context.Context, *usersModel.User) error { return nil },
 	}, &fakeRefreshRepo{}, testJWT(t))
-	toks, err := svc.Register(dto.RegisterRequest{Email: "new@x.y", Password: "secret12", Role: "user"})
+	toks, err := svc.Register(context.Background(), dto.RegisterRequest{Email: "new@x.y", Password: "secret12", Role: "user"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,11 +118,11 @@ func TestRegister_Success(t *testing.T) {
 
 func TestLogin_InvalidCredentials(t *testing.T) {
 	svc := NewAuthService(&fakeAuthUserRepo{
-		byEmail: func(string) (*usersModel.User, error) {
+		byEmail: func(context.Context, string) (*usersModel.User, error) {
 			return nil, errors.New("not found")
 		},
 	}, &fakeRefreshRepo{}, testJWT(t))
-	_, err := svc.Login(dto.LoginRequest{Email: "x@y.z", Password: "wrong"})
+	_, err := svc.Login(context.Background(), dto.LoginRequest{Email: "x@y.z", Password: "wrong"})
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -134,14 +137,14 @@ func TestLogin_Success(t *testing.T) {
 		ID: uuid.New(), Email: "ok@x.y", PasswordHash: hash, Role: "user",
 	}
 	svc := NewAuthService(&fakeAuthUserRepo{
-		byEmail: func(email string) (*usersModel.User, error) {
+		byEmail: func(_ context.Context, email string) (*usersModel.User, error) {
 			if email != u.Email {
 				return nil, errors.New("nf")
 			}
 			return u, nil
 		},
 	}, &fakeRefreshRepo{}, testJWT(t))
-	toks, err := svc.Login(dto.LoginRequest{Email: u.Email, Password: "correct-password"})
+	toks, err := svc.Login(context.Background(), dto.LoginRequest{Email: u.Email, Password: "correct-password"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +155,7 @@ func TestLogin_Success(t *testing.T) {
 
 func TestRefresh_InvalidToken(t *testing.T) {
 	svc := NewAuthService(&fakeAuthUserRepo{}, &fakeRefreshRepo{}, testJWT(t))
-	_, err := svc.Refresh("not-a-jwt")
+	_, err := svc.Refresh(context.Background(), "not-a-jwt")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -165,12 +168,11 @@ func TestRefresh_Success(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// JWT `iat` is second-resolution; a new refresh token in the same second can equal the old one.
 	time.Sleep(1100 * time.Millisecond)
 	svc := NewAuthService(&fakeAuthUserRepo{}, &fakeRefreshRepo{
-		save: func(*authModel.RefreshToken) error { return nil },
+		save: func(context.Context, *authModel.RefreshToken) error { return nil },
 	}, j)
-	toks, err := svc.Refresh(rt)
+	toks, err := svc.Refresh(context.Background(), rt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +187,7 @@ func TestRefresh_Success(t *testing.T) {
 func TestLogout(t *testing.T) {
 	called := false
 	svc := NewAuthService(&fakeAuthUserRepo{}, &fakeRefreshRepo{
-		delete: func(s string) error {
+		delete: func(_ context.Context, s string) error {
 			called = true
 			if s != "tok" {
 				t.Fatal(s)
@@ -193,7 +195,7 @@ func TestLogout(t *testing.T) {
 			return nil
 		},
 	}, testJWT(t))
-	if err := svc.Logout("tok"); err != nil || !called {
+	if err := svc.Logout(context.Background(), "tok"); err != nil || !called {
 		t.Fatalf("called %v err %v", called, err)
 	}
 }

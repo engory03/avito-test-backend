@@ -48,7 +48,7 @@ func (h *SlotHandler) ListSlots(c *gin.Context) {
 		return
 	}
 
-	slots, err := h.service.ListAvailableSlots(roomID, q.Date)
+	slots, err := h.service.ListAvailableSlots(c.Request.Context(), roomID, q.Date)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidSlotListDate):

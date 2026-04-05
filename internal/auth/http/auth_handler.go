@@ -37,7 +37,7 @@ func (h *AuthHandler) DummyLogin(c *gin.Context) {
 		return
 	}
 
-	token, err := h.service.DummyLogin(req)
+	token, err := h.service.DummyLogin(c.Request.Context(), req)
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidDummyRole) {
 			httphelper.JSONAPIError(c, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
@@ -67,7 +67,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	tokens, err := h.service.Register(req)
+	tokens, err := h.service.Register(c.Request.Context(), req)
 	if err != nil {
 		if err.Error() == "user with this email already exists" {
 			httphelper.JSONAPIError(c, http.StatusConflict, "EMAIL_EXISTS", err.Error())
@@ -98,7 +98,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	tokens, err := h.service.Login(req)
+	tokens, err := h.service.Login(c.Request.Context(), req)
 	if err != nil {
 		httphelper.JSONAPIError(c, http.StatusUnauthorized, "UNAUTHORIZED", err.Error())
 		return
@@ -125,7 +125,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	}
 
 	// Пытаемся обновить токены
-	tokens, err := h.service.Refresh(refreshToken)
+	tokens, err := h.service.Refresh(c.Request.Context(), refreshToken)
 	if err != nil {
 		httphelper.JSONAPIError(c, http.StatusUnauthorized, "UNAUTHORIZED", err.Error())
 		return
@@ -157,7 +157,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	// Пытаемся удалить refresh token из хранилища (сервис должен корректно обрабатывать отсутствие токена)
-	if err := h.service.Logout(refreshToken); err != nil {
+	if err := h.service.Logout(c.Request.Context(), refreshToken); err != nil {
 		// возвращать 500 только при внутренней ошибке; если токен уже был удалён, сервис может вернуть nil
 		httphelper.JSONAPIError(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		return
