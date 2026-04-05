@@ -1,1 +1,2 @@
+DROP INDEX IF EXISTS idx_room_start;
 DROP TABLE IF EXISTS slots;

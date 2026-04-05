@@ -1,4 +1,4 @@
-CREATE TABLE bookings (
+CREATE TABLE IF NOT EXISTS bookings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     slot_id UUID NOT NULL REFERENCES slots (id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
@@ -9,4 +9,4 @@ CREATE TABLE bookings (
     CONSTRAINT chk_bookings_status CHECK (status IN ('active', 'cancelled'))
 );
 
-CREATE INDEX idx_bookings_slot_id ON bookings (slot_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_slot_id ON bookings (slot_id);

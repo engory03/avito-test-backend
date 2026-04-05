@@ -1,4 +1,4 @@
-CREATE TABLE schedules (
+CREATE TABLE IF NOT EXISTS schedules (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     room_id UUID NOT NULL REFERENCES rooms (id) ON DELETE CASCADE,
     days_of_week INTEGER[] NOT NULL,
@@ -7,4 +7,4 @@ CREATE TABLE schedules (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX idx_schedules_room_id ON schedules (room_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_schedules_room_id ON schedules (room_id);
